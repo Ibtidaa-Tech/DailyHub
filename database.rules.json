@@ -1,0 +1,89 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('users/'+$uid+'/collaborators/'+auth.uid).exists() || root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com')",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com' || root.child('users/'+$uid+'/collaborators/'+auth.uid+'/role').val() == 'master' || root.child('users/'+$uid+'/collaborators/'+auth.uid+'/role').val() == 'add')",
+        "sharedWithMe": {
+          "$ownerUid": {
+            ".write": "auth != null && (auth.uid == $uid || auth.uid == $ownerUid || root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com')"
+          }
+        },
+
+        "profile": {
+          "disabled": {
+            ".validate": "root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com' || newData.val() == data.val()"
+          }
+        },
+
+        "collaborators": {
+          "$collaboratorUid": {
+            ".validate": "auth.uid == $uid || root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com'"
+          }
+        },
+
+        "mentors": {
+          "$mentorUid": {
+            ".read": "auth != null && (auth.uid == $uid || auth.uid == $mentorUid)",
+            ".write": "auth != null && (auth.uid == $uid || auth.uid == $mentorUid || root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com')",
+            "status": {
+              ".validate": "newData.val() == 'pending' || (newData.val() == 'accepted' && auth.uid == $uid)"
+            }
+          }
+        },
+
+        "students": {
+          "$studentUid": {
+            ".read": "auth != null && (auth.uid == $uid || auth.uid == $studentUid)",
+            ".write": "auth != null && (auth.uid == $uid || auth.uid == $studentUid || root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com')",
+            "status": {
+              ".validate": "newData.val() == 'pending' || (newData.val() == 'accepted' && auth.uid == $studentUid)"
+            }
+          }
+        },
+
+        "challenges": {
+          ".read": "auth != null && root.child('users/'+$uid+'/mentors/'+auth.uid+'/status').val() == 'accepted'",
+          ".write": "auth != null && root.child('users/'+$uid+'/mentors/'+auth.uid+'/status').val() == 'accepted'"
+        },
+
+        "trackerItems": {
+          ".read": "auth != null && root.child('users/'+$uid+'/mentors/'+auth.uid+'/status').val() == 'accepted'",
+          ".write": "auth != null && root.child('users/'+$uid+'/mentors/'+auth.uid+'/status').val() == 'accepted'"
+        },
+
+        "trackerLogs": {
+          ".read": "auth != null && root.child('users/'+$uid+'/mentors/'+auth.uid+'/status').val() == 'accepted'"
+        }
+      }
+    },
+
+    "emailToUid": {
+      ".read": "auth != null",
+      "$escapedEmail": {
+        ".write": "auth != null && (newData.child('uid').val() == auth.uid || auth.token.email == 'khurramrashid0786@gmail.com')"
+      }
+    },
+
+    "admins": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.token.email == 'khurramrashid0786@gmail.com'",
+        ".validate": "newData.isBoolean()"
+      }
+    },
+
+    "broadcast": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com')"
+    },
+
+    "adminAudit": {
+      ".read": "auth != null && (root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com')",
+      "$entryId": {
+        ".write": "auth != null && (root.child('admins/'+auth.uid).val() == true || auth.token.email == 'khurramrashid0786@gmail.com') && !data.exists()",
+        ".validate": "newData.hasChildren(['action','adminUid','targetUid','at'])"
+      }
+    }
+  }
+}

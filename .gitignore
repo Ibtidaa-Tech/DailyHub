@@ -1,0 +1,102 @@
+﻿# ---------------------------------------------------------------- Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+/coverage/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+migrate_working_dir/
+
+# Symbolication / obfuscation
+app.*.symbols
+app.*.map.json
+
+# ---------------------------------------------------------------- Android
+# local.properties holds the absolute path to YOUR Flutter SDK, so it is
+# different on every machine and must never be committed.
+/android/local.properties
+/android/.gradle/
+/android/captures/
+/android/.cxx/
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+**/GeneratedPluginRegistrant.java
+
+# Signing material. Never commit these - anyone holding your keystore can
+# publish an update that Android will accept as genuinely yours.
+/android/key.properties
+**/*.jks
+**/*.keystore
+*.p12
+*.p8
+
+# ---------------------------------------------------------------------- iOS
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Pods/
+**/ios/.symlinks/
+**/DerivedData/
+**/xcuserdata/
+*.mode1v3
+*.mode2v3
+*.pbxuser
+*.perspectivev3
+*.moved-aside
+
+# ------------------------------------------------------------- build output
+# Release artifacts belong on a GitHub release, not in the repo. They bloat
+# history permanently - git keeps every version of a binary forever.
+*.apk
+*.aab
+*.aar
+*.apks
+*.ipa
+*.app.zip
+
+# ---------------------------------------------------------------------- IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+.history
+.atom/
+.svn/
+.swiftpm/
+
+# ----------------------------------------------------------------------- OS
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# -------------------------------------------------------------------- misc
+*.class
+*.log
+*.pyc
+*.tmp
+.build/
+.buildlog/
+.env
+.env.local
+
+# ------------------------------------------------------- per-drop notes
+# Notes that shipped with each code drop. Useful on disk, noise in the repo.
+CHANGES.txt
+RULES_DIFF.txt
+
+# ----------------------------------------------------------------- NOT ignored
+# android/app/google-services.json is deliberately committed. It is the
+# Firebase client config and ships inside every APK anyway - Google documents
+# the key in it as not secret. Your data is protected by database.rules.json
+# and Auth, not by hiding this file.

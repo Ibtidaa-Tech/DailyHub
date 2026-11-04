@@ -1,0 +1,43 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "khurram-world",
+          "appId": "1:217678871138:android:2c76e51cbafa0943d4af3b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "khurram-world",
+          "configurations": {
+            "android": "1:217678871138:android:2c76e51cbafa0943d4af3b",
+            "ios": "1:217678871138:ios:e7602f6ef182481fd4af3b",
+            "web": "1:217678871138:web:f4787814bfe80059d4af3b"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}

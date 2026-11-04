@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "217678871138",
+    "firebase_url": "https://khurram-world-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "khurram-world",
+    "storage_bucket": "khurram-world.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:217678871138:android:2c76e51cbafa0943d4af3b",
+        "android_client_info": {
+          "package_name": "com.khurram.dailyhub"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "217678871138-9oimkhqnvgnhdh113h9mo8iuf1tooohm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.khurram.dailyhub",
+            "certificate_hash": "2819f376454e6dcd964aa72bc5febb337e64ec8f"
+          }
+        },
+        {
+          "client_id": "217678871138-vleqspgbnid94afi93aku2imfoo5vtb5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2g_5EUkrqHOIEPnBppN9ChLDJXQo7rbc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "217678871138-vleqspgbnid94afi93aku2imfoo5vtb5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "217678871138-5cnaedf6dqlmsrm5cqtnrguerf93etsv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.khurram.dailyhub"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
