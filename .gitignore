@@ -1,4 +1,4 @@
-﻿# ---------------------------------------------------------------- Flutter
+# ---------------------------------------------------------------- Flutter
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -90,13 +90,9 @@ ehthumbs.db
 .env
 .env.local
 
-# ------------------------------------------------------- per-drop notes
-# Notes that shipped with each code drop. Useful on disk, noise in the repo.
-CHANGES.txt
-RULES_DIFF.txt
-
 # ----------------------------------------------------------------- NOT ignored
 # android/app/google-services.json is deliberately committed. It is the
 # Firebase client config and ships inside every APK anyway - Google documents
 # the key in it as not secret. Your data is protected by database.rules.json
-# and Auth, not by hiding this file.
+# and Auth, not by hiding this file. If you ever move to a private repo or
+# rotate projects, revisit this.

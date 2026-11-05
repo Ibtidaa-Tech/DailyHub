@@ -66,23 +66,29 @@ const _templates = [_sheet, _salah, _blank];
 /// new one was created.
 /// [store] overrides the signed-in account's store — that is how a mentor
 /// sets a tracker inside a student's data.
+/// [stores] sets the same new tracker in several accounts at once — a mentor
+/// handing one programme to a whole group. Each account gets its own copy
+/// with its own id, so from then on they run independently and one student
+/// editing theirs never touches anyone else's.
 Future<String?> showChallengeEditor(
   BuildContext context, {
   Challenge? challenge,
   TrackerStore? store,
+  List<TrackerStore>? stores,
 }) async {
-  final target = store ?? context.read<TrackerStore>();
+  final target = store ?? (stores != null && stores.isNotEmpty ? stores.first : context.read<TrackerStore>());
   return showAppSheet<String>(
     context,
     expand: true,
-    builder: (_) => _ChallengeSheet(challenge: challenge, store: target),
+    builder: (_) => _ChallengeSheet(challenge: challenge, store: target, stores: stores),
   );
 }
 
 class _ChallengeSheet extends StatefulWidget {
   final Challenge? challenge;
   final TrackerStore store;
-  const _ChallengeSheet({this.challenge, required this.store});
+  final List<TrackerStore>? stores;
+  const _ChallengeSheet({this.challenge, required this.store, this.stores});
 
   @override
   State<_ChallengeSheet> createState() => _ChallengeSheetState();
@@ -119,9 +125,11 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _start,
-      // Backdating a run would invent missed days you never agreed to, so the
-      // earliest it can begin is today.
-      firstDate: now,
+      // Backdating is allowed, because a run often begins on paper before it
+      // begins in the app. The days before today open as missed and you fill
+      // them in from the sheet; each one is then stamped 'filled later', so a
+      // backdated run can never pass itself off as having been ticked on time.
+      firstDate: addDays(now, -180),
       lastDate: addDays(now, 365),
     );
     if (picked != null && mounted) setState(() => _start = dateOnly(picked));
@@ -139,20 +147,43 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
   }
 
   void _save() {
-    final c = widget.challenge ?? Challenge();
     final title = _title.text.trim();
-    c
-      ..title = title.isEmpty ? context.t('tr_challenge_title_hint') : title
-      ..subtitle = _motto.text.trim()
-      ..startDay = dayKey(_start)
-      ..days = _days;
-    final id = widget.store.saveChallenge(c);
+    final name = title.isEmpty ? context.t('tr_challenge_title_hint') : title;
+    final motto = _motto.text.trim();
 
-    if (_isNew) {
-      final tpl = _templates.firstWhere((t) => t.id == _template, orElse: () => _blank);
+    // Editing an existing run: change it in place, one target only.
+    if (!_isNew) {
+      final c = widget.challenge!
+        ..title = name
+        ..subtitle = motto
+        ..startDay = dayKey(_start)
+        ..days = _days;
+      widget.store.saveChallenge(c);
+      Navigator.pop(context, c.id);
+      return;
+    }
+
+    // A new run goes to every target. Each gets a FRESH Challenge object:
+    // saveChallenge stamps the id and owner onto what it is handed, so
+    // reusing one instance would make the second account overwrite the
+    // first account's record.
+    final tpl = _templates.firstWhere((t) => t.id == _template, orElse: () => _blank);
+    final targets = (widget.stores != null && widget.stores!.isNotEmpty)
+        ? widget.stores!
+        : <TrackerStore>[widget.store];
+
+    var lastId = '';
+    for (final store in targets) {
+      final c = Challenge(
+        title: name,
+        subtitle: motto,
+        startDay: dayKey(_start),
+        days: _days,
+      );
+      final id = store.saveChallenge(c);
       var order = 0;
       for (final it in tpl.items) {
-        widget.store.saveItem(TrackerItem(
+        store.saveItem(TrackerItem(
           challengeId: id,
           name: context.t(it.$1),
           emoji: it.$2,
@@ -163,8 +194,9 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
           order: order++,
         ));
       }
+      lastId = id;
     }
-    Navigator.pop(context, id);
+    Navigator.pop(context, lastId);
   }
 
   @override

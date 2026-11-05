@@ -7,6 +7,7 @@ import '../../data/tracker_models.dart';
 import '../../data/tracker_store.dart';
 import '../../ui/kit.dart';
 import 'challenge_editor.dart';
+import 'item_editor.dart';
 import 'tracker_grid.dart';
 import 'tracker_stats.dart';
 import 'tracker_ui.dart';
@@ -57,6 +58,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           title: widget.name,
           subtitle: c?.title,
           actions: [
+            if (c != null)
+              IconButton(
+                tooltip: context.t('tr_add_item'),
+                icon: const Icon(Icons.add_rounded),
+                onPressed: () => showItemEditor(context, challenge: c, store: _store),
+              ),
             IconButton(
               tooltip: context.t('tr_assign'),
               icon: const Icon(Icons.playlist_add_rounded),
@@ -184,8 +191,11 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                 child: TrackerGrid(
                   challenge: c,
                   store: _store,
+                  // Ticks stay the student's to make; the habits themselves
+                  // are the mentor's to set, so column headers are tappable.
                   readOnly: true,
                   onTick: (_, __) {},
+                  onItemTap: (i) => showItemEditor(context, challenge: c, item: i, store: _store),
                 ),
               ),
             ),

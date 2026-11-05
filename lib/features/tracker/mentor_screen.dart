@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/localization.dart';
 import '../../core/theme.dart';
 import '../../data/models.dart';
+import '../../data/tracker_store.dart';
 import '../../services/mentor_service.dart';
 import '../../ui/kit.dart';
+import 'challenge_editor.dart';
 import 'student_detail.dart';
 
 /// Both sides of the mentor link in one place: people you guide, and people
@@ -19,6 +21,94 @@ class _MentorScreenState extends State<MentorScreen> {
   final MentorService _svc = MentorService.instance;
   late final Stream<List<Map<String, dynamic>>> _students = _svc.myStudents();
   late final Stream<List<Map<String, dynamic>>> _mentors = _svc.myMentors();
+
+  /// The other direction: hand your own tracker to a mentor. Takes effect at
+  /// once, because you are giving away a view of your own data.
+  Future<void> _giveAccess() async {
+    final email = await promptText(
+      context,
+      title: context.t('tr_give_access'),
+      hint: context.t('tr_mentor_email_hint'),
+      keyboard: TextInputType.emailAddress,
+    );
+    if (email == null || email.trim().isEmpty || !mounted) return;
+    try {
+      await _svc.addMentor(email.trim());
+      if (mounted) {
+        showToast(context, context.tr('tr_mentor_added', {'name': email.trim()}),
+            icon: Icons.school_rounded);
+      }
+    } catch (e) {
+      if (mounted) {
+        showToast(context, e.toString().replaceFirst('Exception: ', ''),
+            icon: Icons.error_outline_rounded);
+      }
+    }
+  }
+
+  /// One programme, several students. Each gets their own independent copy,
+  /// so a student editing theirs never touches anyone else's.
+  Future<void> _assignMany(List<Map<String, dynamic>> students) async {
+    final accepted = students
+        .where((s) => str(s['status']) == MentorService.accepted)
+        .toList();
+    if (accepted.isEmpty) {
+      showToast(context, context.t('tr_no_accepted_students'), icon: Icons.info_outline_rounded);
+      return;
+    }
+
+    final chosen = <String>{for (final s in accepted) str(s['id'])};
+    final picked = await showAppSheet<bool>(
+      context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SheetHeader(ctx.t('tr_pick_students')),
+            const SizedBox(height: 4),
+            GroupCard(children: [
+              for (final s in accepted)
+                CheckboxListTile(
+                  value: chosen.contains(str(s['id'])),
+                  onChanged: (v) => setSheet(() {
+                    if (v == true) {
+                      chosen.add(str(s['id']));
+                    } else {
+                      chosen.remove(str(s['id']));
+                    }
+                  }),
+                  title: Text(str(s['name']).isEmpty ? str(s['email']) : str(s['name'])),
+                  subtitle: Text(str(s['email'])),
+                ),
+            ]),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: chosen.isEmpty ? null : () => Navigator.pop(ctx, true),
+                child: Text(ctx.tr('tr_assign_count', {'n': chosen.length})),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (picked != true || chosen.isEmpty || !mounted) return;
+
+    // Short-lived stores, one per student, purely to write into their data.
+    final stores = [for (final uid in chosen) TrackerStore(forUid: uid)];
+    try {
+      final id = await showChallengeEditor(context, stores: stores);
+      if (id != null && mounted) {
+        showToast(context, context.tr('tr_assigned_many', {'n': stores.length}),
+            icon: Icons.check_rounded);
+      }
+    } finally {
+      for (final s in stores) {
+        s.dispose();
+      }
+    }
+  }
 
   Future<void> _invite() async {
     final email = await promptText(
@@ -55,6 +145,16 @@ class _MentorScreenState extends State<MentorScreen> {
               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 for (final m in waiting) _InviteCard(invite: m, svc: _svc),
                 SectionTitle(context.t('tr_my_mentors')),
+                GroupCard(children: [
+                  OptionTile(
+                    icon: Icons.person_add_alt_1_rounded,
+                    color: AppColors.mStudy,
+                    title: context.t('tr_give_access'),
+                    subtitle: context.t('tr_give_access_sub'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: _giveAccess,
+                  ),
+                ]),
                 if (active.isEmpty)
                   DhCard(
                     child: Text(context.t('tr_no_mentors'),
@@ -121,8 +221,20 @@ class _MentorScreenState extends State<MentorScreen> {
                   compact: true,
                 );
               }
-              return GroupCard(children: [
-                for (final s in list) _StudentTile(student: s, svc: _svc),
+              return Column(children: [
+                GroupCard(children: [
+                  for (final s in list) _StudentTile(student: s, svc: _svc),
+                ]),
+                GroupCard(children: [
+                  OptionTile(
+                    icon: Icons.groups_rounded,
+                    color: AppColors.mTracker,
+                    title: context.t('tr_assign_many'),
+                    subtitle: context.t('tr_assign_many_sub'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _assignMany(list),
+                  ),
+                ]),
               ]);
             },
           ),

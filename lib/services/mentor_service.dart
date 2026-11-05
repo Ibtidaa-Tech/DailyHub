@@ -82,6 +82,50 @@ class MentorService {
     });
   }
 
+  /// Student-initiated: hand someone access to your own tracker.
+  ///
+  /// No acceptance step, and none is needed — you are giving away a view of
+  /// your own data rather than asking for anything, so your write is the only
+  /// consent involved. The rules permit it for the same reason: the student
+  /// is the one account allowed to set 'accepted' on their own mentor record.
+  ///
+  /// They can drop you from their list at any time, and you can revoke with
+  /// [removeMentor], which cuts access immediately.
+  Future<void> addMentor(String email) async {
+    final me = _uid;
+    if (me == null) throw Exception('You are not signed in.');
+    final target = await _lookup(email);
+    if (target == null) {
+      throw Exception('No DailyHub account for that email. They need to sign up first.');
+    }
+    if (target.uid == me) {
+      throw Exception('You cannot be your own mentor.');
+    }
+
+    final existing = await _ref('users/$me/mentors/${target.uid}/status').get();
+    if (existing.value == accepted) {
+      throw Exception('They are already your mentor.');
+    }
+
+    final myName = _email == null ? 'A student' : (await _lookup(_email!))?.name ?? _email!;
+    final now = DateTime.now().toIso8601String();
+
+    await _ref('users/$me/mentors/${target.uid}').set({
+      'email': email.trim(),
+      'name': target.name,
+      'status': accepted,
+      'invitedAt': now,
+      'acceptedAt': now,
+    });
+    await _ref('users/${target.uid}/students/$me').set({
+      'email': _email ?? '',
+      'name': myName,
+      'status': accepted,
+      'invitedAt': now,
+      'acceptedAt': now,
+    });
+  }
+
   /// Student accepts. This is the moment the mentor gains read access, and
   /// only the student's own write can do it.
   Future<void> accept(String mentorUid) async {

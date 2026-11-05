@@ -1,0 +1,63 @@
+DailyHub - drop 07 : mentor edits a live run + one tracker for several
+=======================================================================
+
+CUMULATIVE (drops 01-07). Extract over the project root.
+NO rules deploy needed. The rules you already pushed cover both.
+
+CHANGED (4 files)
+  lib/features/tracker/challenge_editor.dart  new "stores" option: write the
+                                              same new run into many accounts
+  lib/features/tracker/student_detail.dart    mentor can add / edit habits
+  lib/features/tracker/mentor_screen.dart     "Set one tracker for several"
+  lib/l10n/strings_tracker.dart               +10 keys (166 total, EN + HI)
+
+
+1. MENTOR EDITS A LIVE RUN
+--------------------------
+Open a student, and there is now a + in the toolbar: adds a habit straight
+into the run they are already doing. On the Sheet tab, tapping any column
+header opens that habit for editing - rename it, change its window, adjust
+the grace minutes.
+
+The rules always allowed this (trackerItems is read+write for an accepted
+mentor); only the buttons were missing.
+
+The ticks themselves stay read-only. The habits are yours to set, the
+record of doing them is theirs to make. Mentor ticking arrives in drop 08
+as its own clearly-marked thing.
+
+A habit the mentor adds mid-run counts from the day it was added, like any
+other late addition - so it shows Day 1 while the rest of the sheet carries
+on at Day 9.
+
+
+2. ONE TRACKER FOR SEVERAL STUDENTS
+-----------------------------------
+Hub -> Mentor -> "Set one tracker for several". Tick the students (everyone
+who has accepted is pre-ticked), then build the tracker once in the usual
+editor.
+
+Each student gets their OWN COPY with its own id. They are not sharing a
+record: one student editing theirs, or ticking theirs, never touches
+anyone else's. That is the right shape for a cohort running the same
+21-day programme - you set it once, everyone owns their own run of it.
+
+Students who have not accepted yet are left out of the list, because
+without an accepted link there is no permission to write into their data.
+
+Assigning a different tracker to a different student still works the same
+way it did: open that student and use the other toolbar button.
+
+
+CHECKLIST
+---------
+  done   drops 01-06
+  done   drop 07   mentor edits live run + one tracker for several (this)
+  next   drop 08   join code + mentor ticking - ONE rules deploy for both
+  open            move repo files out of app/ back to the root
+  open            release 2.2.0+6 with the APK attached
+  open            superadmin email readable in a public repo
+
+
+Hand-checked: 166 string keys resolve, EN/HI placeholders match, brackets
+balance. Send me the analyze output.
