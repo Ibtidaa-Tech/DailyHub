@@ -15,7 +15,6 @@ Color tickColor(BuildContext context, TickStatus s, Color itemColor) {
   return switch (s) {
     TickStatus.onTime => itemColor,
     TickStatus.overdue => tk.warning,
-    TickStatus.backfilled => tk.transfer,
     TickStatus.missed => tk.danger,
     TickStatus.pending => tk.textFaint,
   };
@@ -79,9 +78,7 @@ class TickBox extends StatelessWidget {
       );
     }
     final c = tickColor(context, status, color);
-    final filled = status == TickStatus.onTime ||
-        status == TickStatus.overdue ||
-        status == TickStatus.backfilled;
+    final filled = status == TickStatus.onTime || status == TickStatus.overdue;
     return Semantics(
       button: enabled,
       label: context.t(tickStatusKey(status)),
@@ -126,7 +123,6 @@ class TickLegend extends StatelessWidget {
     const statuses = [
       TickStatus.onTime,
       TickStatus.overdue,
-      TickStatus.backfilled,
       TickStatus.missed,
       TickStatus.pending,
     ];

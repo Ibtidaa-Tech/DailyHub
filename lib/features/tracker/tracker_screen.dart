@@ -9,6 +9,9 @@ import '../../data/tracker_models.dart';
 import '../../data/tracker_store.dart';
 import '../../ui/kit.dart';
 import 'challenge_editor.dart';
+import 'done_time_sheet.dart';
+import 'tick_detail_sheet.dart';
+import 'tick_list_sheet.dart';
 import 'item_editor.dart';
 import 'mentor_screen.dart';
 import 'tracker_grid.dart';
@@ -36,34 +39,103 @@ class _TrackerScreenState extends State<TrackerScreen> {
     return store.active;
   }
 
-  /// Ticks a box and says what that counted as, so late is never silent.
-  void _tick(TrackerStore store, Challenge c, TrackerItem i, DateTime day) {
+  /// Ticks a box, asking first when it was actually done.
+  ///
+  /// The time is never assumed from the tap, because the tap is usually not
+  /// the moment: a Fajr prayed at 5:30 and ticked at 8pm is on time, and
+  /// stamping 8pm would quietly call it late.
+  Future<void> _tick(TrackerStore store, Challenge c, TrackerItem i, DateTime day) async {
     if (day.isAfter(todayDate())) {
       showToast(context, context.t('tr_future_day'), icon: Icons.block_rounded);
       return;
     }
-    final existing = store.isTicked(c.id, i.id, day);
-    if (existing) {
-      final old = store.logFor(c.id, i.id, day);
-      store.untick(c, i, day);
-      final data = old?.toMap();
-      final id = old?.id;
-      if (data != null && id != null) {
+    // Already ticked: show what is recorded rather than silently undoing it.
+    // A stray tap should never cost a record.
+    final existing = store.logFor(c.id, i.id, day);
+    if (existing != null) {
+      final action = await showTickDetail(
+        context,
+        item: i,
+        day: day,
+        log: existing,
+        dayNumber: i.dayNumber(day),
+      );
+      if (action == null || !mounted) return;
+      if (action == TickAction.clear) {
+        final data = existing.toMap();
+        final id = existing.id;
+        store.untick(c, i, day);
         showUndo(context, context.t('tr_toast_cleared'), () => store.restoreLog(id, data));
+        return;
       }
+      // Change the time: reopen the picker seeded with what is there now.
+      final revised = await askDoneTime(
+        context,
+        item: i,
+        day: day,
+        initial: existing.completedAt,
+      );
+      if (revised == null || !mounted) return;
+      final updated = store.tick(c, i, revised);
+      showToast(
+        context,
+        updated.tickStatus == TickStatus.overdue
+            ? context.tr('tr_toast_late', {'n': updated.lateBy})
+            : context.t('tr_toast_ontime'),
+        icon: Icons.edit_rounded,
+      );
       return;
     }
-    final log = store.tick(c, i, day);
-    switch (log.tickStatus) {
-      case TickStatus.overdue:
-        showToast(context, context.tr('tr_toast_late', {'n': log.lateBy}), icon: Icons.schedule_rounded);
-        break;
-      case TickStatus.backfilled:
-        showToast(context, context.tr('tr_toast_backfill', {'d': context.dayLabel(day)}),
-            icon: Icons.history_rounded);
-        break;
-      default:
-        showToast(context, context.t('tr_toast_ontime'), icon: Icons.check_circle_rounded);
+
+    final when = await askDoneTime(context, item: i, day: day);
+    if (when == null || !mounted) return;
+
+    final log = store.tick(c, i, when);
+    if (log.tickStatus == TickStatus.overdue) {
+      showToast(context, context.tr('tr_toast_late', {'n': log.lateBy}), icon: Icons.schedule_rounded);
+    } else if (log.recordedLater) {
+      showToast(context, context.tr('tr_toast_recorded', {'t': context.timeOf(when)}),
+          icon: Icons.history_rounded);
+    } else {
+      showToast(context, context.t('tr_toast_ontime'), icon: Icons.check_circle_rounded);
+    }
+  }
+
+  /// Opens the entries behind a figure. Picking one leads into it: a missed
+  /// day goes straight to the time prompt, a done one to its details.
+  Future<void> _openList(
+    TrackerStore store,
+    Challenge c, {
+    TickStatus? status,
+    bool lateEntryOnly = false,
+  }) async {
+    final picked = await showTickList(
+      context,
+      challenge: c,
+      store: store,
+      status: status,
+      lateEntryOnly: lateEntryOnly,
+    );
+    if (picked == null || !mounted) return;
+    await _tick(store, c, picked.item, picked.day);
+  }
+
+  /// Runs the same programme again. The finished one stays in the list with
+  /// all its ticks intact — you can switch back to it any time.
+  Future<void> _restart(TrackerStore store, Challenge c) async {
+    final ok = await confirmDialog(
+      context,
+      title: context.t('tr_restart'),
+      message: context.tr('tr_restart_q', {'t': c.title, 'n': store.itemsOf(c.id).length}),
+      confirm: context.t('tr_restart_do'),
+    );
+    if (!ok || !mounted) return;
+    // A finished run should not keep sending reminders once it is replaced.
+    if (c.isActive) store.setChallengeStatus(c, ChallengeStatus.finished);
+    final id = store.restart(c);
+    if (mounted) {
+      setState(() => _challengeId = id);
+      showToast(context, context.t('tr_restarted'), icon: Icons.replay_rounded);
     }
   }
 
@@ -136,6 +208,8 @@ class _TrackerScreenState extends State<TrackerScreen> {
           itemBuilder: (ctx) => [
             PopupMenuItem(value: 'add', child: Text(ctx.t('tr_add_item'))),
             PopupMenuItem(value: 'edit', child: Text(ctx.t('tr_edit_challenge'))),
+            PopupMenuItem(value: 'align', child: Text(ctx.t('tr_align'))),
+            PopupMenuItem(value: 'restart', child: Text(ctx.t('tr_restart'))),
             PopupMenuItem(value: 'new', child: Text(ctx.t('tr_new'))),
             PopupMenuItem(value: 'mentor', child: Text(ctx.t('tr_mentor_title'))),
             if (c.isActive) PopupMenuItem(value: 'finish', child: Text(ctx.t('tr_finish'))),
@@ -145,7 +219,13 @@ class _TrackerScreenState extends State<TrackerScreen> {
         ),
       ],
       slivers: [
-        SliverToBoxAdapter(child: _Header(challenge: c, store: store)),
+        SliverToBoxAdapter(
+          child: _Header(
+            challenge: c,
+            store: store,
+            onOpen: (status) => _openList(store, c, status: status),
+          ),
+        ),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.only(top: 12, bottom: 4),
@@ -201,6 +281,25 @@ class _TrackerScreenState extends State<TrackerScreen> {
         break;
       case 'edit':
         await showChallengeEditor(context, challenge: c);
+        break;
+      case 'align':
+        {
+          final ok = await confirmDialog(
+            context,
+            title: context.t('tr_align'),
+            message: context.tr('tr_align_q', {'d': context.dayLabel(c.start ?? todayDate())}),
+            confirm: context.t('tr_align_do'),
+          );
+          if (!ok) return;
+          final moved = store.alignItemsToStart(c);
+          if (mounted) {
+            showToast(context, context.tr('tr_aligned', {'n': moved}),
+                icon: Icons.align_horizontal_left_rounded);
+          }
+          break;
+        }
+      case 'restart':
+        await _restart(store, c);
         break;
       case 'new':
         await _newChallenge();
@@ -282,6 +381,52 @@ class _TrackerScreenState extends State<TrackerScreen> {
       ];
     }
 
+    // The run is over: close it off properly rather than leaving an empty
+    // list that looks like a day with nothing to do.
+    if (c.isOver || c.status != ChallengeStatus.active) {
+      final tally = store.tally(c);
+      return [
+        SliverToBoxAdapter(
+          child: DhCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Text('🏁', style: TextStyle(fontSize: 30)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(context.tr('tr_run_done', {'n': c.days}), style: context.tt.titleMedium),
+                    Text(
+                      context.tr('tr_run_done_msg', {
+                        'p': (tally.rate * 100).round(),
+                        'd': store.perfectDays(c),
+                      }),
+                      style: context.tt.bodySmall?.copyWith(color: context.tokens.textMuted),
+                    ),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _restart(store, c),
+                    icon: const Icon(Icons.replay_rounded),
+                    label: Text(context.t('tr_restart')),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton(
+                  onPressed: () => setState(() => _view = _View.stats),
+                  child: Text(context.t('tr_tab_stats')),
+                ),
+              ]),
+            ]),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 90)),
+      ];
+    }
+
     final todo = <TrackerItem>[];
     final done = <TrackerItem>[];
     for (final i in items) {
@@ -346,10 +491,37 @@ class _TrackerScreenState extends State<TrackerScreen> {
 
 // -------------------------------------------------------------------- header
 
+/// A figure that opens the list behind it.
+class _TapStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final VoidCallback onTap;
+  const _TapStat({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.s),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: StatBlock(label: label, value: value, color: color),
+      ),
+    );
+  }
+}
+
 class _Header extends StatelessWidget {
   final Challenge challenge;
   final TrackerStore store;
-  const _Header({required this.challenge, required this.store});
+  final void Function(TickStatus status) onOpen;
+  const _Header({required this.challenge, required this.store, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -394,6 +566,8 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 14),
         ProgressBar(value: pct, color: AppColors.mTracker),
         const SizedBox(height: 10),
+        // Each figure opens the list behind it — tapping "6 missed" should
+        // answer which six, and lead straight to filling them in.
         Row(children: [
           Expanded(
             child: StatBlock(
@@ -403,24 +577,27 @@ class _Header extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: StatBlock(
+            child: _TapStat(
               label: context.t('tr_on_time'),
               value: '${tally.onTime}',
               color: tk.success,
+              onTap: () => onOpen(TickStatus.onTime),
             ),
           ),
           Expanded(
-            child: StatBlock(
+            child: _TapStat(
               label: context.t('tr_late'),
-              value: '${tally.lateTicks + tally.backfilled}',
+              value: '${tally.lateTicks}',
               color: tk.warning,
+              onTap: () => onOpen(TickStatus.overdue),
             ),
           ),
           Expanded(
-            child: StatBlock(
+            child: _TapStat(
               label: context.t('tr_missed'),
               value: '${tally.missed}',
               color: tally.missed == 0 ? tk.textMuted : tk.danger,
+              onTap: () => onOpen(TickStatus.missed),
             ),
           ),
         ]),
@@ -466,9 +643,12 @@ class _ItemTile extends StatelessWidget {
         Pill(closes,
             color: closes == context.t('tr_closed') ? tk.danger : tk.warning,
             icon: Icons.schedule_rounded),
+      // Shown only when it actually lagged, so a live tick stays uncluttered.
+      if (log != null && log.recordedLater)
+        Pill(context.t('tr_recorded_later'), color: tk.transfer, icon: Icons.history_rounded),
     ];
 
-    final when = log?.tickedAt;
+    final when = log?.completedAt;
 
     return DhCard(
       margin: const EdgeInsets.symmetric(vertical: 4),

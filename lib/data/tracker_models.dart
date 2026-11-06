@@ -19,17 +19,21 @@ import 'models.dart';
 /// already passed, so it can never go stale or disagree with the data.
 /// ---------------------------------------------------------------------------
 
-/// What a log row means. Stored on the row except for [missed] and [pending],
-/// which are worked out from the calendar.
+/// What a log row means.
+///
+/// This is PUNCTUALITY only — did the thing happen inside its window. When it
+/// was typed into the app is a separate question, answered by
+/// [TrackerLog.recordedLater], because the two are independent: praying Fajr
+/// at 5:30 and ticking the box at 8pm is on time, recorded late. Collapsing
+/// them would mark a whole week of honest catch-up as failure.
+///
+/// [missed] and [pending] are never stored; they come from the calendar.
 enum TickStatus {
-  /// Logged within the window (or no window set), on the day itself.
+  /// Done inside the window, or the habit has no window.
   onTime,
 
-  /// Logged on the day, but after the window closed.
+  /// Done after the window closed.
   overdue,
-
-  /// Logged for an earlier day than the one it was ticked on.
-  backfilled,
 
   /// The day has passed with no log at all. Never stored.
   missed,
@@ -41,23 +45,22 @@ enum TickStatus {
 String tickStatusKey(TickStatus s) => switch (s) {
       TickStatus.onTime => 'tr_on_time',
       TickStatus.overdue => 'tr_late',
-      TickStatus.backfilled => 'tr_backfilled',
       TickStatus.missed => 'tr_missed',
       TickStatus.pending => 'tr_pending',
     };
 
 TickStatus tickStatusFromName(String s) => switch (s) {
       'late' => TickStatus.overdue,
-      'backfill' => TickStatus.backfilled,
       'missed' => TickStatus.missed,
       'pending' => TickStatus.pending,
+      // 'backfill' is from before punctuality and recording time were split.
+      // Those rows carry no window verdict, so they read as on time.
       _ => TickStatus.onTime,
     };
 
 String tickStatusName(TickStatus s) => switch (s) {
       TickStatus.onTime => 'ontime',
       TickStatus.overdue => 'late',
-      TickStatus.backfilled => 'backfill',
       TickStatus.missed => 'missed',
       TickStatus.pending => 'pending',
     };
@@ -328,20 +331,32 @@ class TrackerItem {
     return DateTime(day.year, day.month, day.day, s.hour, s.minute);
   }
 
-  /// Works out what ticking this item at [at], for [day], means.
+  /// Judges a completion time against this item's window.
   ///
-  /// A tick for an earlier day is always [TickStatus.backfilled] whatever the
-  /// clock says — it was not done at the time, and the mentor should see that
-  /// rather than a clean "on time".
-  ({TickStatus status, int lateBy}) evaluate(DateTime day, DateTime at) {
-    if (!sameDay(day, at)) {
-      return (status: TickStatus.backfilled, lateBy: 0);
-    }
-    final deadline = deadlineOn(day);
-    if (deadline == null || !at.isAfter(deadline)) {
+  /// [doneAt] is when the person says they did it, not when they tapped. A
+  /// habit with no closing time can never be late, so it is always on time.
+  ({TickStatus status, int lateBy}) evaluate(DateTime doneAt) {
+    final deadline = deadlineOn(doneAt);
+    if (deadline == null || !doneAt.isAfter(deadline)) {
       return (status: TickStatus.onTime, lateBy: 0);
     }
-    return (status: TickStatus.overdue, lateBy: at.difference(deadline).inMinutes);
+    return (status: TickStatus.overdue, lateBy: doneAt.difference(deadline).inMinutes);
+  }
+
+  /// The time to offer when someone ticks this habit for [day].
+  ///
+  /// Ticking in the moment should need no thought, so it offers now. Once the
+  /// window has shut — or the day is already past — now is almost certainly
+  /// wrong, and the window's opening time is the better guess.
+  DateTime suggestedTimeFor(DateTime day) {
+    final now = DateTime.now();
+    final opens = opensOn(day);
+    final deadline = deadlineOn(day);
+    if (sameDay(day, now)) {
+      if (deadline == null || !now.isAfter(deadline)) return now;
+      return opens ?? DateTime(day.year, day.month, day.day, now.hour, now.minute);
+    }
+    return opens ?? DateTime(day.year, day.month, day.day, 9, 0);
   }
 }
 
@@ -358,8 +373,14 @@ class TrackerLog {
   /// Day key this tick is *for*.
   String forDay;
 
-  /// Exact moment the box was ticked, ISO 8601 with the device's offset.
+  /// When the box was ticked — stamped by the app, never editable. This is
+  /// what makes a late entry visible rather than deniable.
   String at;
+
+  /// When the person says they actually did it. Decides on time vs late.
+  /// Empty on rows written before the two were separated, in which case
+  /// [completedAt] falls back to [at].
+  String doneAt;
   String status;
 
   /// Minutes past the deadline. 0 unless [status] is late.
@@ -376,6 +397,7 @@ class TrackerLog {
     this.itemId = '',
     this.forDay = '',
     this.at = '',
+    this.doneAt = '',
     this.status = 'ontime',
     this.lateBy = 0,
     this.by = '',
@@ -389,6 +411,7 @@ class TrackerLog {
         itemId: str(m['itemId']),
         forDay: str(m['forDay']),
         at: str(m['at']),
+        doneAt: str(m['doneAt']),
         status: str(m['status']).isEmpty ? 'ontime' : str(m['status']),
         lateBy: toI(m['lateBy']),
         by: str(m['by']),
@@ -401,6 +424,7 @@ class TrackerLog {
         'itemId': itemId,
         'forDay': forDay,
         'at': at,
+        'doneAt': doneAt,
         'status': status,
         'lateBy': lateBy,
         'by': by,
@@ -412,13 +436,41 @@ class TrackerLog {
       '${challengeId}_${itemId}_${dayKey(day)}';
 
   DateTime? get day => parseDay(forDay);
-  DateTime? get tickedAt => DateTime.tryParse(at);
+
+  /// When the box was tapped.
+  DateTime? get recordedAt => DateTime.tryParse(at);
+
+  /// When it was actually done. Falls back to the tap time for rows written
+  /// before the two were separated.
+  DateTime? get completedAt => DateTime.tryParse(doneAt.isEmpty ? at : doneAt);
+
+  /// How long after doing it the box was ticked. Negative values (a clock
+  /// change, or a time typed slightly ahead) clamp to zero.
+  int get lagMinutes {
+    final done = completedAt;
+    final rec = recordedAt;
+    if (done == null || rec == null) return 0;
+    final m = rec.difference(done).inMinutes;
+    return m < 0 ? 0 : m;
+  }
+
+  /// True when this was typed in well after the fact. Twenty minutes is the
+  /// line: long enough that normal "tick it once you are done" never trips
+  /// it, short enough that an evening catch-up always does.
+  bool get recordedLater => lagMinutes > 20;
+
+  /// Recorded on a later calendar day than it happened.
+  bool get recordedAnotherDay {
+    final done = completedAt;
+    final rec = recordedAt;
+    if (done == null || rec == null) return false;
+    return !sameDay(done, rec);
+  }
 
   TickStatus get tickStatus => tickStatusFromName(status);
 
   bool get wasOnTime => tickStatus == TickStatus.onTime;
   bool get wasLate => tickStatus == TickStatus.overdue;
-  bool get wasBackfilled => tickStatus == TickStatus.backfilled;
 }
 
 // --------------------------------------------------------------------- tally
@@ -429,33 +481,60 @@ class TrackerLog {
 /// Field is `lateTicks`, not `late` — `late` is a Dart modifier and cannot be
 /// an identifier here.
 class TrackerTally {
+  /// Done inside the window.
   final int onTime;
+
+  /// Done after the window closed.
   final int lateTicks;
-  final int backfilled;
+
   final int missed;
 
   /// Every (day, item) pair the run expected over the period measured.
   final int expected;
 
+  /// How many of the done ones were typed in well after the fact. This does
+  /// NOT reduce [done] or [onTime] — something done at 5:30 and ticked at 8
+  /// was still done at 5:30. It is counted separately so a mentor can tell
+  /// live ticking from an evening catch-up.
+  final int recordedLate;
+
   const TrackerTally({
     this.onTime = 0,
     this.lateTicks = 0,
-    this.backfilled = 0,
     this.missed = 0,
     this.expected = 0,
+    this.recordedLate = 0,
   });
 
   /// Ticked at all, however late.
-  int get done => onTime + lateTicks + backfilled;
+  int get done => onTime + lateTicks;
 
   /// Share of expected boxes that got ticked, 0..1.
   double get rate => expected == 0 ? 0 : done / expected;
 
-  /// Share that were ticked inside their window — the stricter number, and
+  /// Share that were done inside their window — the stricter number, and
   /// the one worth showing a mentor.
   double get onTimeRate => expected == 0 ? 0 : onTime / expected;
 
   bool get isEmpty => expected == 0;
+}
+
+// -------------------------------------------------------------------- entry
+
+/// One cell of the sheet, resolved: which habit, which day, and the row
+/// behind it if there is one. [log] is null for a missed day, which is the
+/// whole point — a miss is the absence of a row, not a row of its own.
+class TrackerEntry {
+  final DateTime day;
+  final TrackerItem item;
+  final TrackerLog? log;
+  final TickStatus status;
+  const TrackerEntry({
+    required this.day,
+    required this.item,
+    required this.log,
+    required this.status,
+  });
 }
 
 // ---------------------------------------------------------------------- icons
@@ -466,7 +545,6 @@ class TrackerTally {
 IconData tickIcon(TickStatus s) => switch (s) {
       TickStatus.onTime => Icons.check_rounded,
       TickStatus.overdue => Icons.schedule_rounded,
-      TickStatus.backfilled => Icons.history_rounded,
       TickStatus.missed => Icons.close_rounded,
       TickStatus.pending => Icons.circle_outlined,
     };

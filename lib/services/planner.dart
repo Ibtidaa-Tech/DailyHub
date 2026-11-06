@@ -484,8 +484,10 @@ class NotificationPlanner {
       if (challenge == null || !challenge.isActive) return;
       final day = todayDate();
       if (challenge.dayNumber(day) == null || !item.runsOn(day)) return;
+      // Tapping Done on the notification means "I have just done it", so the
+      // completion time and the record time are the same moment here.
       final at = DateTime.now();
-      final verdict = item.evaluate(day, at);
+      final verdict = item.evaluate(at);
       final key = TrackerLog.keyFor(challenge.id, item.id, day);
       _db.set(
         'trackerLogs',
@@ -496,6 +498,7 @@ class NotificationPlanner {
           itemId: item.id,
           forDay: dayKey(day),
           at: at.toIso8601String(),
+          doneAt: at.toIso8601String(),
           status: tickStatusName(verdict.status),
           lateBy: verdict.lateBy,
           by: _db.uid ?? '',

@@ -153,12 +153,20 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
 
     // Editing an existing run: change it in place, one target only.
     if (!_isNew) {
-      final c = widget.challenge!
+      final c = widget.challenge!;
+      // Captured before the overwrite: habits that began with the run are
+      // pinned to its old start, and must travel with it. Without this the
+      // sheet grows rows the habits do not cover, and those days render as
+      // "did not exist yet" dashes instead of tickable boxes.
+      final oldStart = c.startDay;
+      final newStart = dayKey(_start);
+      c
         ..title = name
         ..subtitle = motto
-        ..startDay = dayKey(_start)
+        ..startDay = newStart
         ..days = _days;
       widget.store.saveChallenge(c);
+      widget.store.moveItemsPinnedTo(c, oldStart, newStart);
       Navigator.pop(context, c.id);
       return;
     }

@@ -81,6 +81,7 @@ class AppColors {
   static const Color mCountdown = Color(0xFFEAB308);
   static const Color mInsights = Color(0xFF3B82F6);
   static const Color mTracker = Color(0xFF9333EA);
+  static const Color mPrayer = Color(0xFF0D9488);
 
   /// Palette for user-coloured things (lists, habits, accounts, categories).
   static const List<Color> swatches = [

@@ -158,6 +158,67 @@ class TrackerStore extends LiveStore {
     return true;
   }
 
+  /// Pulls every habit back to the run's own first day.
+  ///
+  /// Needed when a run's start is moved earlier after its habits already
+  /// exist: the habits keep their own start days, so the sheet shows dashes
+  /// ("did not exist yet") for the days before them. Returns how many moved.
+  int alignItemsToStart(Challenge c) {
+    var moved = 0;
+    for (final i in itemsOf(c.id)) {
+      if (i.startDay == c.startDay) continue;
+      _db.updateIn(_owner, 'trackerItems', i.id, {'startDay': c.startDay});
+      moved++;
+    }
+    return moved;
+  }
+
+  /// Keeps habits that began WITH a run attached to it when its start moves.
+  /// A habit added later has its own start on purpose, so it is left alone.
+  int moveItemsPinnedTo(Challenge c, String oldStart, String newStart) {
+    if (oldStart == newStart) return 0;
+    var moved = 0;
+    for (final i in itemsOf(c.id)) {
+      if (i.startDay != oldStart) continue;
+      _db.updateIn(_owner, 'trackerItems', i.id, {'startDay': newStart});
+      moved++;
+    }
+    return moved;
+  }
+
+  /// Runs the same programme again as a NEW challenge.
+  ///
+  /// The finished one is left exactly as it is — its ticks, its dates, its
+  /// numbers all stay readable from the tracker switcher. Only the habits
+  /// are copied across; none of the ticks are, so the new run starts clean.
+  String restart(Challenge old, {DateTime? start, int? days}) {
+    final from = dateOnly(start ?? todayDate());
+    final fresh = Challenge(
+      title: old.title,
+      subtitle: old.subtitle,
+      startDay: dayKey(from),
+      days: days ?? old.days,
+      color: old.color,
+    );
+    final id = saveChallenge(fresh);
+    var order = 0;
+    for (final i in itemsOf(old.id)) {
+      saveItem(TrackerItem(
+        challengeId: id,
+        name: i.name,
+        emoji: i.emoji,
+        color: i.color,
+        startDay: dayKey(from),
+        windowStart: i.windowStart,
+        windowEnd: i.windowEnd,
+        grace: i.grace,
+        kind: i.kind,
+        order: order++,
+      ));
+    }
+    return id;
+  }
+
   void reorderItems(List<TrackerItem> ordered) {
     for (var n = 0; n < ordered.length; n++) {
       if (ordered[n].order == n) continue;
@@ -182,17 +243,25 @@ class TrackerStore extends LiveStore {
     return day.isBefore(todayDate()) ? TickStatus.missed : TickStatus.pending;
   }
 
-  /// Ticks a box, stamping the exact moment and working out whether that was
-  /// on time, late or a backfill. Returns the row that was written.
-  TrackerLog tick(Challenge c, TrackerItem i, DateTime day, {String note = ''}) {
-    final at = DateTime.now();
-    final verdict = i.evaluate(day, at);
+  /// Ticks a box.
+  ///
+  /// [doneAt] is when it was actually done — supplied by whoever is ticking,
+  /// because the moment you tap is often not the moment you did the thing.
+  /// The tap time is stamped alongside it and is never editable, so a late
+  /// entry stays visible without being punished as a late habit.
+  ///
+  /// The row is filed under the calendar day of [doneAt], not the day the
+  /// tap happened, so entering Monday's Fajr on Friday lands on Monday.
+  TrackerLog tick(Challenge c, TrackerItem i, DateTime doneAt, {String note = ''}) {
+    final day = dateOnly(doneAt);
+    final verdict = i.evaluate(doneAt);
     final log = TrackerLog(
       id: TrackerLog.keyFor(c.id, i.id, day),
       challengeId: c.id,
       itemId: i.id,
       forDay: dayKey(day),
-      at: at.toIso8601String(),
+      at: DateTime.now().toIso8601String(),
+      doneAt: doneAt.toIso8601String(),
       status: tickStatusName(verdict.status),
       lateBy: verdict.lateBy,
       by: _uid,
@@ -205,14 +274,14 @@ class TrackerStore extends LiveStore {
   void untick(Challenge c, TrackerItem i, DateTime day) =>
       _db.removeIn(_owner, 'trackerLogs', TrackerLog.keyFor(c.id, i.id, day));
 
-  /// Ticks if clear, clears if ticked. Returns the new row, or null when the
-  /// box was cleared.
-  TrackerLog? toggle(Challenge c, TrackerItem i, DateTime day) {
+  /// Clears if ticked, otherwise ticks at [doneAt]. Returns the new row, or
+  /// null when the box was cleared.
+  TrackerLog? toggle(Challenge c, TrackerItem i, DateTime day, {DateTime? doneAt}) {
     if (isTicked(c.id, i.id, day)) {
       untick(c, i, day);
       return null;
     }
-    return tick(c, i, day);
+    return tick(c, i, doneAt ?? i.suggestedTimeFor(day));
   }
 
   void restoreLog(String id, Map<String, dynamic> data) => _db.setIn(_owner, 'trackerLogs', id, data);
@@ -283,7 +352,7 @@ class TrackerStore extends LiveStore {
     bool Function(DateTime day)? where,
   }) {
     final end = upTo ?? todayDate();
-    var onTime = 0, overdue = 0, back = 0, expected = 0;
+    var onTime = 0, overdue = 0, expected = 0, lateEntry = 0;
     for (final d in c.allDays()) {
       if (d.isAfter(end)) break;
       if (where != null && !where(d)) continue;
@@ -292,15 +361,13 @@ class TrackerStore extends LiveStore {
         expected++;
         final log = logFor(c.id, i.id, d);
         if (log == null) continue;
+        if (log.recordedLater) lateEntry++;
         switch (log.tickStatus) {
           case TickStatus.onTime:
             onTime++;
             break;
           case TickStatus.overdue:
             overdue++;
-            break;
-          case TickStatus.backfilled:
-            back++;
             break;
           default:
             break;
@@ -310,10 +377,42 @@ class TrackerStore extends LiveStore {
     return TrackerTally(
       onTime: onTime,
       lateTicks: overdue,
-      backfilled: back,
-      missed: expected - (onTime + overdue + back),
+      missed: expected - (onTime + overdue),
       expected: expected,
+      recordedLate: lateEntry,
     );
+  }
+
+  /// Every cell of the run so far, newest first, optionally narrowed to one
+  /// status — what sits behind tapping "12 late" and seeing which twelve.
+  ///
+  /// [lateEntryOnly] picks out the ones typed in well after the fact, which
+  /// cuts across status rather than being one of them.
+  List<TrackerEntry> entries(
+    Challenge c, {
+    TickStatus? status,
+    bool lateEntryOnly = false,
+    String? itemId,
+  }) {
+    final today = todayDate();
+    final out = <TrackerEntry>[];
+    for (final d in c.allDays()) {
+      if (d.isAfter(today)) break;
+      for (final i in itemsOn(c.id, d)) {
+        if (itemId != null && i.id != itemId) continue;
+        final log = logFor(c.id, i.id, d);
+        final st = statusOf(c, i, d);
+        if (lateEntryOnly) {
+          if (log == null || !log.recordedLater) continue;
+        } else if (status != null && st != status) {
+          continue;
+        } else if (status == null && st == TickStatus.pending) {
+          continue;
+        }
+        out.add(TrackerEntry(day: d, item: i, log: log, status: st));
+      }
+    }
+    return out.reversed.toList();
   }
 
   // ------------------------------------------------------ breakdowns

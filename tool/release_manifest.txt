@@ -15,6 +15,7 @@ lib/data/life_store.dart
 lib/data/models.dart
 lib/data/money_store.dart
 lib/data/plan_store.dart
+lib/data/prayer_store.dart
 lib/data/shopping_store.dart
 lib/data/store_base.dart
 lib/data/student_store.dart
@@ -53,6 +54,7 @@ lib/features/plan/plan_tiles.dart
 lib/features/plan/reminder_editor.dart
 lib/features/plan/reminders_screen.dart
 lib/features/plan/task_editor.dart
+lib/features/prayer/prayer_screen.dart
 lib/features/search/search_screen.dart
 lib/features/settings/settings_screen.dart
 lib/features/shell/shell.dart
@@ -62,9 +64,12 @@ lib/features/student/student_editors.dart
 lib/features/student/student_screen.dart
 lib/features/student/timetable_view.dart
 lib/features/tracker/challenge_editor.dart
+lib/features/tracker/done_time_sheet.dart
 lib/features/tracker/item_editor.dart
 lib/features/tracker/mentor_screen.dart
 lib/features/tracker/student_detail.dart
+lib/features/tracker/tick_detail_sheet.dart
+lib/features/tracker/tick_list_sheet.dart
 lib/features/tracker/tracker_grid.dart
 lib/features/tracker/tracker_screen.dart
 lib/features/tracker/tracker_stats.dart
@@ -114,6 +119,7 @@ lib/services/location_service.dart
 lib/services/mentor_service.dart
 lib/services/notification_service.dart
 lib/services/planner.dart
+lib/services/prayer_times.dart
 lib/services/update_service.dart
 lib/services/vault_service.dart
 lib/services/voice_service.dart

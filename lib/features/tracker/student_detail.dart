@@ -8,6 +8,7 @@ import '../../data/tracker_store.dart';
 import '../../ui/kit.dart';
 import 'challenge_editor.dart';
 import 'item_editor.dart';
+import 'tick_detail_sheet.dart';
 import 'tracker_grid.dart';
 import 'tracker_stats.dart';
 import 'tracker_ui.dart';
@@ -95,7 +96,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   List<Widget> _runSlivers(Challenge c) {
     final tally = _store.tally(c);
     final last = _store.logs.where((l) => l.challengeId == c.id).toList();
-    final lastAt = last.isEmpty ? null : last.first.tickedAt;
+    // Logs arrive newest-recorded first, so this is "when they last opened
+    // the app and logged something", which is what a mentor is asking.
+    final lastAt = last.isEmpty ? null : last.first.recordedAt;
 
     return [
       SliverToBoxAdapter(
@@ -135,7 +138,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               Expanded(
                 child: StatBlock(
                   label: context.t('tr_late'),
-                  value: '${tally.lateTicks + tally.backfilled}',
+                  value: '${tally.lateTicks}',
                   color: context.tokens.warning,
                 ),
               ),
@@ -225,12 +228,25 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       itemBuilder: (context, n) {
         final l = logs[n];
         final item = _store.itemById(l.itemId);
-        final at = l.tickedAt;
+        final at = l.completedAt;
+        final entered = l.recordedAt;
         final day = l.day;
         final color = item == null ? AppColors.mTracker : AppColors.swatch(item.color);
         return DhCard(
           margin: const EdgeInsets.symmetric(vertical: 3),
           padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+          // Read-only: a mentor can inspect any entry in full, but the
+          // record stays the student's to change.
+          onTap: item == null
+              ? null
+              : () => showTickDetail(
+                    context,
+                    item: item,
+                    day: day ?? at ?? DateTime.now(),
+                    log: l,
+                    dayNumber: day == null ? null : item.dayNumber(day),
+                    readOnly: true,
+                  ),
           child: Row(children: [
             IconBadge(emoji: item?.emoji ?? '✅', color: color, size: 34),
             const SizedBox(width: 10),
@@ -245,6 +261,18 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                       : '${context.dayLabel(day ?? at, short: true)} · ${context.timeOf(at)}',
                   style: context.tt.bodySmall?.copyWith(color: context.tokens.textMuted),
                 ),
+                // Both times, so a live tick and an evening catch-up are
+                // never indistinguishable from this side.
+                if (l.recordedLater && entered != null)
+                  Text(
+                    context.tr('tr_entered_at', {
+                      't': l.recordedAnotherDay
+                          ? '${context.dayLabel(entered, short: true)} ${context.timeOf(entered)}'
+                          : context.timeOf(entered)
+                    }),
+                    style: context.tt.bodySmall?.copyWith(
+                        fontSize: 11, color: context.tokens.transfer),
+                  ),
               ]),
             ),
             TickPill(l.tickStatus, itemColor: color, lateBy: l.lateBy),

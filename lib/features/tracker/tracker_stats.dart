@@ -8,6 +8,7 @@ import '../../data/models.dart';
 import '../../data/tracker_models.dart';
 import '../../data/tracker_store.dart';
 import '../../ui/kit.dart';
+import 'tick_list_sheet.dart';
 
 enum _Split { week, month, weekday, day }
 
@@ -28,6 +29,19 @@ class TrackerStats extends StatefulWidget {
 class _TrackerStatsState extends State<TrackerStats> {
   _Split _split = _Split.week;
 
+  /// Opens the entries behind a figure in the summary. Read-only here — the
+  /// dashboard is for reading the run, not editing it, and the same list is
+  /// reachable from the Today header where ticking belongs.
+  Future<void> _open(TickStatus? status, bool lateEntryOnly) async {
+    await showTickList(
+      context,
+      challenge: widget.challenge,
+      store: widget.store,
+      status: status,
+      lateEntryOnly: lateEntryOnly,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.challenge;
@@ -44,7 +58,7 @@ class _TrackerStatsState extends State<TrackerStats> {
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _Summary(challenge: c, store: store, total: total),
+      _Summary(challenge: c, store: store, total: total, onOpen: _open),
       SectionTitle(context.t('tr_split')),
       PillTabs<_Split>(
         items: [
@@ -76,7 +90,13 @@ class _Summary extends StatelessWidget {
   final Challenge challenge;
   final TrackerStore store;
   final TrackerTally total;
-  const _Summary({required this.challenge, required this.store, required this.total});
+  final void Function(TickStatus? status, bool lateEntryOnly) onOpen;
+  const _Summary({
+    required this.challenge,
+    required this.store,
+    required this.total,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -108,10 +128,9 @@ class _Summary extends StatelessWidget {
             values: [
               total.onTime.toDouble(),
               total.lateTicks.toDouble(),
-              total.backfilled.toDouble(),
               total.missed.toDouble(),
             ],
-            colors: [tk.success, tk.warning, tk.transfer, tk.danger],
+            colors: [tk.success, tk.warning, tk.danger],
             center: Column(mainAxisSize: MainAxisSize.min, children: [
               Text('${(total.rate * 100).round()}%', style: context.tt.titleLarge),
               Text(context.t('tr_done_rate'), style: context.tt.bodySmall),
@@ -120,10 +139,30 @@ class _Summary extends StatelessWidget {
           const SizedBox(width: 16),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _Key(color: tk.success, label: context.t('tr_on_time'), value: total.onTime),
-              _Key(color: tk.warning, label: context.t('tr_late'), value: total.lateTicks),
-              _Key(color: tk.transfer, label: context.t('tr_backfilled'), value: total.backfilled),
-              _Key(color: tk.danger, label: context.t('tr_missed'), value: total.missed),
+              _Key(
+                color: tk.success,
+                label: context.t('tr_on_time'),
+                value: total.onTime,
+                onTap: () => onOpen(TickStatus.onTime, false),
+              ),
+              _Key(
+                color: tk.warning,
+                label: context.t('tr_late'),
+                value: total.lateTicks,
+                onTap: () => onOpen(TickStatus.overdue, false),
+              ),
+              _Key(
+                color: tk.transfer,
+                label: context.t('tr_late_entries'),
+                value: total.recordedLate,
+                onTap: () => onOpen(null, true),
+              ),
+              _Key(
+                color: tk.danger,
+                label: context.t('tr_missed'),
+                value: total.missed,
+                onTap: () => onOpen(TickStatus.missed, false),
+              ),
             ]),
           ),
         ]),
@@ -190,18 +229,25 @@ class _Key extends StatelessWidget {
   final Color color;
   final String label;
   final int value;
-  const _Key({required this.color, required this.label, required this.value});
+  final VoidCallback? onTap;
+  const _Key({required this.color, required this.label, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.s),
+      child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
         Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
         Expanded(child: Text(label, style: context.tt.bodySmall)),
         Text('$value', style: context.tt.labelLarge),
+        if (onTap != null)
+          Icon(Icons.chevron_right_rounded, size: 16, color: context.tokens.textFaint),
       ]),
+    ),
     );
   }
 }
@@ -483,8 +529,8 @@ class _HabitRow extends StatelessWidget {
       Wrap(spacing: 6, runSpacing: 4, children: [
         Pill('${tally.onTime} ${context.t('tr_on_time')}', color: tk.success),
         if (tally.lateTicks > 0) Pill('${tally.lateTicks} ${context.t('tr_late')}', color: tk.warning),
-        if (tally.backfilled > 0)
-          Pill('${tally.backfilled} ${context.t('tr_backfilled')}', color: tk.transfer),
+        if (tally.recordedLate > 0)
+          Pill('${tally.recordedLate} ${context.t('tr_late_entries')}', color: tk.transfer),
         if (tally.missed > 0) Pill('${tally.missed} ${context.t('tr_missed')}', color: tk.danger),
         Pill('${context.t('tr_streak_now')} $streak', color: AppColors.mTracker, icon: Icons.bolt_rounded),
         Pill('${context.t('tr_best')} $best', color: tk.textMuted),

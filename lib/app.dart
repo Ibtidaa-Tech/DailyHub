@@ -12,6 +12,7 @@ import 'data/extras_store.dart';
 import 'data/life_store.dart';
 import 'data/money_store.dart';
 import 'data/plan_store.dart';
+import 'data/prayer_store.dart';
 import 'data/student_store.dart';
 import 'data/shopping_store.dart';
 import 'data/tracker_store.dart';
@@ -113,11 +114,14 @@ class _Session {
   final ShoppingStore shopping = ShoppingStore();
   final WorkStore work = WorkStore();
   final TrackerStore tracker = TrackerStore();
+  final PrayerStore prayer;
   final ExtrasStore extras;
   final List<StreamSubscription<dynamic>> subs = [];
   Timer? prefsTimeout;
 
-  _Session(AppSettings settings) : extras = ExtrasStore(settings);
+  _Session(AppSettings settings)
+      : extras = ExtrasStore(settings),
+        prayer = PrayerStore(settings);
 
   void dispose() {
     for (final s in subs) {
@@ -133,6 +137,7 @@ class _Session {
     shopping.dispose();
     work.dispose();
     tracker.dispose();
+    prayer.dispose();
     extras.dispose();
   }
 }
@@ -299,6 +304,7 @@ class _SessionHostState extends State<SessionHost> {
         ChangeNotifierProvider.value(value: s.shopping),
         ChangeNotifierProvider.value(value: s.work),
         ChangeNotifierProvider.value(value: s.tracker),
+        ChangeNotifierProvider.value(value: s.prayer),
         ChangeNotifierProvider.value(value: s.extras),
       ],
       child: widget.child,

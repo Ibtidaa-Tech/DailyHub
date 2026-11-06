@@ -46,6 +46,19 @@ class AppSettings extends ChangeNotifier {
   bool notifMigrated = false;
   bool use24h = false;
 
+  // Prayer times. Location is kept separately from the weather one: weather
+  // is happy with a coarse fix, prayer times move by a minute per 15 km of
+  // longitude, and the two get refreshed at different moments.
+  String prayerMethod = 'karachi';
+  String asrMadhab = 'shafii';
+  double? prayerLat;
+  double? prayerLng;
+  String prayerPlace = '';
+
+  /// Re-read the device's position each time prayer times are needed, so
+  /// they follow you when you travel. Off pins them to [prayerLat]/[prayerLng].
+  bool prayerFollowLocation = true;
+
   /// Called whenever a synced value changes; wired to Firebase in app.dart.
   void Function(Map<String, dynamic> synced)? onSyncedChange;
 
@@ -148,6 +161,12 @@ class AppSettings extends ChangeNotifier {
         'defaultAccount': defaultAccount,
         'notifMigrated': notifMigrated,
         'use24h': use24h,
+        'prayerMethod': prayerMethod,
+        'asrMadhab': asrMadhab,
+        'prayerLat': prayerLat,
+        'prayerLng': prayerLng,
+        'prayerPlace': prayerPlace,
+        'prayerFollowLocation': prayerFollowLocation,
       };
 
   void _fromJson(Map<String, dynamic> j) {
@@ -181,6 +200,12 @@ class AppSettings extends ChangeNotifier {
     defaultAccount = j['defaultAccount'] ?? '';
     notifMigrated = j['notifMigrated'] == true;
     use24h = j['use24h'] == true;
+    prayerMethod = j['prayerMethod'] ?? 'karachi';
+    asrMadhab = j['asrMadhab'] ?? 'shafii';
+    prayerLat = (j['prayerLat'] as num?)?.toDouble();
+    prayerLng = (j['prayerLng'] as num?)?.toDouble();
+    prayerPlace = j['prayerPlace'] ?? '';
+    prayerFollowLocation = j['prayerFollowLocation'] != false;
   }
 
   // ------------------------------------------------------------ setters
@@ -277,6 +302,28 @@ class AppSettings extends ChangeNotifier {
 
   void setUse24h(bool v) {
     use24h = v;
+    _save();
+  }
+
+  void setPrayerMethod(String id) {
+    prayerMethod = id;
+    _save();
+  }
+
+  void setAsrMadhab(String id) {
+    asrMadhab = id;
+    _save();
+  }
+
+  void setPrayerFollowLocation(bool v) {
+    prayerFollowLocation = v;
+    _save();
+  }
+
+  void setPrayerLocation(double lat, double lng, {String place = ''}) {
+    prayerLat = lat;
+    prayerLng = lng;
+    if (place.isNotEmpty) prayerPlace = place;
     _save();
   }
 

@@ -14,6 +14,7 @@ import '../../screens/scanner_screen.dart';
 import '../shopping/shopping_screen.dart';
 import '../student/student_screen.dart';
 import '../../screens/tools/tools_screen.dart';
+import '../prayer/prayer_screen.dart';
 import '../tracker/mentor_screen.dart';
 import '../tracker/tracker_screen.dart';
 import '../trips/trips_screen.dart';
@@ -77,6 +78,7 @@ class Modules {
     ModuleDef(id: 'notes', labelKey: 'm_notes', descKey: 'md_notes', icon: Icons.sticky_note_2_rounded, color: AppColors.mNotes, group: 'life', page: () => const NotesScreen()),
     ModuleDef(id: 'habits', labelKey: 'm_habits', descKey: 'md_habits', icon: Icons.local_fire_department_rounded, color: AppColors.mHabits, group: 'life', page: () => const HabitsScreen()),
     ModuleDef(id: 'tracker', labelKey: 'm_tracker', descKey: 'md_tracker', icon: Icons.fact_check_rounded, color: AppColors.mTracker, group: 'life', page: () => const TrackerScreen()),
+    ModuleDef(id: 'prayer', labelKey: 'm_prayer', descKey: 'md_prayer', icon: Icons.mosque_rounded, color: AppColors.mPrayer, group: 'life', page: () => const PrayerScreen()),
     ModuleDef(id: 'mentor', labelKey: 'm_mentor', descKey: 'md_mentor', icon: Icons.school_rounded, color: AppColors.mStudy, group: 'life', parent: 'tracker', page: () => const MentorScreen()),
     ModuleDef(id: 'goals', labelKey: 'm_goals', descKey: 'md_goals', icon: Icons.flag_rounded, color: AppColors.mGoals, group: 'life', page: () => const GoalsScreen()),
     ModuleDef(id: 'journal', labelKey: 'm_journal', descKey: 'md_journal', icon: Icons.auto_stories_rounded, color: AppColors.mJournal, group: 'life', page: () => const JournalScreen()),

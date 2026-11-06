@@ -1,63 +1,103 @@
-DailyHub - drop 07 : mentor edits a live run + one tracker for several
-=======================================================================
+DailyHub - drop 11 : prayer times from your location, every school
+===================================================================
 
-CUMULATIVE (drops 01-07). Extract over the project root.
-NO rules deploy needed. The rules you already pushed cover both.
+CUMULATIVE (drops 01-11). Extract over the project root.
+NO rules deploy needed.
 
-CHANGED (4 files)
-  lib/features/tracker/challenge_editor.dart  new "stores" option: write the
-                                              same new run into many accounts
-  lib/features/tracker/student_detail.dart    mentor can add / edit habits
-  lib/features/tracker/mentor_screen.dart     "Set one tracker for several"
-  lib/l10n/strings_tracker.dart               +10 keys (166 total, EN + HI)
+NEW
+  lib/services/prayer_times.dart        the calculation - pure Dart, offline
+  lib/data/prayer_store.dart            per-day corrections
+  lib/features/prayer/prayer_screen.dart the screen
 
+CHANGED
+  lib/core/settings.dart     method, madhab, location, follow-location
+  lib/core/theme.dart        AppColors.mPrayer
+  lib/app.dart               PrayerStore in the session
+  lib/features/hub/modules.dart   "Prayer times" module
+  lib/l10n/strings_tracker.dart   +40 keys, EN + HI
+  tool/release_manifest.txt       135 entries
 
-1. MENTOR EDITS A LIVE RUN
---------------------------
-Open a student, and there is now a + in the toolbar: adds a habit straight
-into the run they are already doing. On the Sheet tab, tapping any column
-header opens that habit for editing - rename it, change its window, adjust
-the grace minutes.
-
-The rules always allowed this (trackerItems is read+write for an accepted
-mentor); only the buttons were missing.
-
-The ticks themselves stay read-only. The habits are yours to set, the
-record of doing them is theirs to make. Mentor ticking arrives in drop 08
-as its own clearly-marked thing.
-
-A habit the mentor adds mid-run counts from the day it was added, like any
-other late addition - so it shows Day 1 while the rest of the sheet carries
-on at Day 9.
+Turn it on: Hub -> Manage modules -> Prayer times.
 
 
-2. ONE TRACKER FOR SEVERAL STUDENTS
------------------------------------
-Hub -> Mentor -> "Set one tracker for several". Tick the students (everyone
-who has accepted is pre-ticked), then build the tracker once in the usual
-editor.
+THE CALCULATION
+---------------
+Computed on your phone from the sun's position. No API, no key, no network,
+no new package - it works offline and on a plane.
 
-Each student gets their OWN COPY with its own id. They are not sharing a
-record: one student editing theirs, or ticking theirs, never touches
-anyone else's. That is the right shape for a cohort running the same
-21-day programme - you set it once, everyone owns their own run of it.
+I checked the maths against known sunrise and sunset before writing the
+Dart, and it lands to the minute: Delhi 06:36 / 17:33, London 07:02 /
+16:26, Makkah 06:26 / 17:42, Mumbai 06:41 / 18:03.
 
-Students who have not accepted yet are left out of the list, because
-without an accepted link there is no permission to write into their data.
+Then I checked it against YOUR sheet. Your times match a Mumbai longitude
+with Shafi'i Asr, within a few minutes:
 
-Assigning a different tracker to a different student still works the same
-way it did: open that student and use the other toolbar button.
+                  your sheet     calculated
+   Fajr             5:22           5:26
+   Zuhr            12:20          12:22
+   Asr              3:41           3:38   (Shafi'i)
+   Maghrib          6:08           6:03
+   Isha             7:15           7:18
+
+So your times are calculated ones, not mosque jamaat times. Expect the app
+to sit within about five minutes of what you are already using.
+
+
+A CORRECTION ON THE SCHOOLS
+---------------------------
+You asked for Shafi'i and Hanbali side by side. Those two always give the
+SAME Asr - Shafi'i, Maliki and Hanbali all use one shadow-length. Only
+Hanafi differs, using two, which puts it roughly 45 minutes later.
+
+You chose to show all four named separately, so that is what it does: four
+rows, three of them matching, with a line underneath explaining why. Tap
+one to choose which drives the rest of the app.
+
+
+WHAT THE SCREEN DOES
+--------------------
+  * Fajr, sunrise, Zuhr, Asr, Maghrib, Isha for any date - arrows to step
+    a day, tap the date to jump
+  * "Asr by school": all four, your choice marked
+  * a next-prayer card with the countdown
+  * TAP ANY TIME TO CORRECT IT. The correction applies to THAT DAY ONLY,
+    exactly as you asked - fix Fajr on 6 November and 7 November still
+    calculates clean. Corrected times show in blue with an undo arrow.
+  * the calculation method lives behind the tune icon: Karachi (the default
+    and the usual choice in India), Muslim World League, ISNA, Egyptian,
+    Umm al-Qura, Gulf, Tehran
+  * "Follow my location" recalculates wherever you are, so travelling stays
+    right. Turn it off to pin the times to one place.
+
+Location is read only when you open the screen, never in the background,
+and the coordinates never leave your phone - the sun maths is local.
+
+
+WHY THE TRACKER WINDOWS ARE NOT WIRED TO THIS YET
+-------------------------------------------------
+Deliberate, and I would rather you agree before I do it: check the
+calculated times against your mosque for a day or two first. If they are
+off for your area, better to find that on a screen than to have your Fajr
+habit silently re-timed and start marking you late.
+
+Once you are happy, say so and drop 12 binds them: a habit gets a "this is
+Fajr" setting, its window becomes the real window for that day (Fajr until
+sunrise, Zuhr until Asr, and so on), it moves with you when you travel, and
+your per-day corrections carry through to the tracker too.
 
 
 CHECKLIST
 ---------
-  done   drops 01-06
-  done   drop 07   mentor edits live run + one tracker for several (this)
-  next   drop 08   join code + mentor ticking - ONE rules deploy for both
+  done   drops 01-10
+  done   drop 11   prayer times (this drop)
+  next   drop 12   "Where was I" daily location log
+  then            bind tracker windows to prayer times (your go-ahead)
+  owed            join code + mentor ticking - one rules deploy
   open            move repo files out of app/ back to the root
   open            release 2.2.0+6 with the APK attached
   open            superadmin email readable in a public repo
 
 
-Hand-checked: 166 string keys resolve, EN/HI placeholders match, brackets
-balance. Send me the analyze output.
+Hand-checked: all string keys resolve, EN/HI placeholders match, brackets
+balance, no deprecated Radio.groupValue anywhere. Send me the analyze
+output.

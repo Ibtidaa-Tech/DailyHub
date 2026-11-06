@@ -60,10 +60,33 @@ const Map<String, List<String>> stringsTracker = {
   'tr_closed': ['Window closed', 'समय-सीमा बंद'],
   'tr_opens_at': ['Opens at {t}', '{t} बजे खुलेगी'],
 
+  // When was it done
+  'tr_when_done': ['When did you do it?', 'आपने यह कब किया?'],
+  'tr_time': ['Time', 'समय'],
+  'tr_just_now': ['Just now', 'अभी-अभी'],
+  'tr_mark_done': ['Mark done', 'पूरा दर्ज करें'],
+  'tr_not_yet': ['That is still in the future', 'यह अभी आना बाकी है'],
+  'tr_will_note_entry': [
+    'Recorded now, {x} after the fact',
+    'अभी दर्ज, उसके {x} बाद',
+  ],
+  'tr_entered_at': ['entered {t}', '{t} को दर्ज'],
+  'tr_recorded_later': ['Entered later', 'बाद में दर्ज'],
+  'tr_recorded_live': ['Entered at the time', 'उसी समय दर्ज'],
+  'tr_late_entries': ['Entered later', 'बाद में दर्ज'],
+
+  'tr_done_at': ['Done at', 'कब किया'],
+  'tr_entered_on': ['Entered on', 'कब दर्ज किया'],
+  'tr_change_time': ['Change time', 'समय बदलें'],
+  'tr_clear_tick': ['Clear this tick', 'यह निशान हटाएँ'],
+  'tr_none_in_list': ['Nothing in this list', 'इस सूची में कुछ नहीं'],
+  'tr_n_entries': ['{n} entries', '{n} प्रविष्टियाँ'],
+
   // Ticking
   'tr_toast_ontime': ['Marked on time', 'समय पर निशान लगा'],
   'tr_toast_late': ['Marked — {n} min late', 'निशान लगा — {n} मिनट देर'],
   'tr_toast_backfill': ['Marked for {d} — filled in later', '{d} के लिए निशान — बाद में भरा'],
+  'tr_toast_recorded': ['Marked as done at {t}', '{t} पर हुआ, दर्ज कर दिया'],
   'tr_toast_cleared': ['Cleared', 'हटा दिया'],
   'tr_future_day': ['You cannot tick a future day', 'आने वाले दिन पर निशान नहीं लगा सकते'],
   'tr_not_running_yet': ['This has not started yet', 'यह अभी शुरू नहीं हुआ'],
@@ -135,6 +158,27 @@ const Map<String, List<String>> stringsTracker = {
   ],
   'tr_create': ['Create tracker', 'ट्रैकर बनाएँ'],
   'tr_edit_challenge': ['Edit tracker', 'ट्रैकर बदलें'],
+
+  // Repair + restart
+  'tr_align': ['Align habits to start', 'आदतें शुरुआत से जोड़ें'],
+  'tr_align_q': [
+    'Move every habit back to {d}, so the earlier days can be ticked instead of showing dashes?',
+    'हर आदत को {d} पर ले जाएँ, ताकि पहले के दिनों पर निशान लग सकें और डैश न दिखें?',
+  ],
+  'tr_align_do': ['Move them', 'ले जाएँ'],
+  'tr_aligned': ['{n} habits moved', '{n} आदतें ले जाई गईं'],
+  'tr_restart': ['Start again', 'फिर से शुरू करें'],
+  'tr_restart_q': [
+    'Begin "{t}" again from today with the same {n} habits? The finished run is kept with all its ticks.',
+    'वही {n} आदतों के साथ "{t}" आज से फिर शुरू करें? पुराना दौर अपने सभी निशानों के साथ रहेगा।',
+  ],
+  'tr_restart_do': ['Start again', 'फिर से शुरू'],
+  'tr_restarted': ['New run started', 'नया दौर शुरू हुआ'],
+  'tr_run_done': ['{n} days done', '{n} दिन पूरे'],
+  'tr_run_done_msg': [
+    '{p}% completed, {d} perfect days. Start again whenever you are ready.',
+    '{p}% पूरा, {d} पूरे दिन। जब तैयार हों फिर शुरू करें।',
+  ],
 
   // Lifecycle
   'tr_finish': ['Finish now', 'अभी खत्म करें'],
@@ -256,6 +300,57 @@ const Map<String, List<String>> stringsTracker = {
   'tr_last_seen': ['Last tick {x}', 'आखिरी निशान {x}'],
   'tr_never': ['Nothing yet', 'अभी कुछ नहीं'],
   'tr_students_n': ['{n} students', '{n} छात्र'],
+
+
+  // Prayer times
+  'm_prayer': ['Prayer times', 'नमाज़ का समय'],
+  'md_prayer': [
+    'Times for where you are, in every school',
+    'आप जहाँ हैं वहाँ के समय, हर मसलक में',
+  ],
+  'pr_times': ['Today', 'आज'],
+  'pr_asr_schools': ['Asr by school', 'मसलक अनुसार अस्र'],
+  'pr_sunrise': ['Sunrise', 'सूर्योदय'],
+  'pr_hanafi': ['Hanafi', 'हनफ़ी'],
+  'pr_shafii': ["Shafi'i", 'शाफ़ई'],
+  'pr_maliki': ['Maliki', 'मालिकी'],
+  'pr_hanbali': ['Hanbali', 'हंबली'],
+  'pr_asr_note': [
+    'Hanafi uses two shadow-lengths; the other three use one, so those times match.',
+    'हनफ़ी दो छाया-लंबाई लेते हैं; बाकी तीन एक, इसलिए उनका समय एक जैसा रहता है।',
+  ],
+  'pr_asr_edited': [
+    'You have set Asr by hand for this day, so that time is used instead.',
+    'आपने इस दिन का अस्र खुद तय किया है, इसलिए वही समय लिया जाएगा।',
+  ],
+  'pr_next': ['{p} next', 'अगली {p}'],
+  'pr_in_min': ['in {n} min', '{n} मिनट में'],
+  'pr_in_hm': ['in {h}h {m}m', '{h} घं {m} मि में'],
+  'pr_method': ['Calculation', 'गणना'],
+  'pr_method_sub': [
+    'Decides Fajr and Isha. Karachi is the usual choice in India.',
+    'फ़ज्र और इशा इसी से तय होते हैं। भारत में आम तौर पर कराची।',
+  ],
+  'pr_follow': ['Follow my location', 'मेरी जगह के अनुसार'],
+  'pr_follow_sub': [
+    'Recalculate wherever you are, so travelling stays right',
+    'आप जहाँ हों वहीं के हिसाब से, सफ़र में भी सही',
+  ],
+  'pr_refresh_location': ['Update location', 'जगह अपडेट करें'],
+  'pr_use_location': ['Use my location', 'मेरी जगह लें'],
+  'pr_no_location': ['Location needed', 'जगह चाहिए'],
+  'pr_no_location_msg': [
+    'Prayer times are worked out from where you are. Nothing is sent anywhere — the calculation happens on your phone.',
+    'नमाज़ का समय आपकी जगह से निकाला जाता है। कुछ कहीं नहीं भेजा जाता — गणना आपके फ़ोन पर होती है।',
+  ],
+  'pr_edit_for': ['Set for {d} only', 'सिर्फ़ {d} के लिए'],
+  'pr_edited': ['Set for this day', 'इस दिन के लिए तय'],
+  'pr_edited_tag': ['Edited', 'बदला'],
+  'pr_reset': ['Back to calculated', 'गणना पर लौटें'],
+  'pr_footnote': [
+    'Calculated on this phone using {m}. Tap any time to correct it for that day.',
+    '{m} से इसी फ़ोन पर गणना। किसी भी समय पर टैप करके उस दिन के लिए सुधारें।',
+  ],
 
   // Notifications
   'ch_tracker': ['Habit tracker', 'आदत ट्रैकर'],
