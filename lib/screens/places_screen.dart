@@ -7,6 +7,7 @@ import '../core/localization.dart';
 import '../core/theme.dart';
 import '../data/models.dart';
 import '../services/db_service.dart';
+import '../services/geocode_service.dart';
 import '../services/location_service.dart';
 import '../ui/kit.dart';
 
@@ -66,6 +67,13 @@ class PlacesScreen extends StatelessWidget {
         return AppPage(
           title: context.t('m_places'),
           subtitle: context.t('places_sub'),
+          actions: [
+            IconButton(
+              tooltip: context.t('place_save_here'),
+              icon: const Icon(Icons.my_location_rounded),
+              onPressed: () => openPlaceEditor(context, captureNow: true),
+            ),
+          ],
           fab: FloatingActionButton.extended(
             heroTag: 'placeFab',
             onPressed: () => openPlaceEditor(context),
@@ -292,15 +300,64 @@ void _removePlace(BuildContext context, DbService db, Map<String, dynamic> place
 // ---------------------------------------------------------------- editors
 
 /// Add or edit one saved place.
-Future<void> openPlaceEditor(BuildContext context, {Map<String, dynamic>? existing}) async {
+/// [captureNow] opens the editor already fetching a GPS fix — the "save
+/// where I am" path, where the coordinates matter more than the address.
+Future<void> openPlaceEditor(
+  BuildContext context, {
+  Map<String, dynamic>? existing,
+  bool captureNow = false,
+}) async {
   final db = DbService.instance;
   final name = TextEditingController(text: str(existing?['name']));
   final address = TextEditingController(text: str(existing?['address']));
   var category = str(existing?['category']);
   if (!PlacesScreen.categories.contains(category)) category = 'Other';
+  var lat = (existing?['lat'] as num?)?.toDouble();
+  var lng = (existing?['lng'] as num?)?.toDouble();
+  var locating = false;
+  String? locError;
+  PlaceName? pinName;
+  if (existing != null) {
+    final n = str(existing['pinName']);
+    if (n.isNotEmpty) pinName = PlaceName(n, str(existing['pinArea']).isEmpty ? n : str(existing['pinArea']));
+  }
 
   await showAppSheet<void>(context, builder: (ctx) {
     return StatefulBuilder(builder: (ctx, set) {
+      Future<void> grab() async {
+        set(() {
+          locating = true;
+          locError = null;
+        });
+        final res = await LocationService.instance.current();
+        set(() {
+          locating = false;
+          lat = res.position?.latitude;
+          lng = res.position?.longitude;
+          locError = res.error;
+          pinName = null;
+        });
+        final la = lat, ln = lng;
+        if (la == null || ln == null) return;
+        // The fix is already saved; the name is a bonus that arrives a moment
+        // later over the network, so nothing waits on it.
+        final found = await GeocodeService.describe(la, ln);
+        if (found == null) return;
+        set(() {
+          pinName = found;
+          // Fill the blanks rather than overwrite: a place you have already
+          // named "Home" should not silently become "Andheri East".
+          if (name.text.trim().isEmpty) name.text = found.short;
+          if (address.text.trim().isEmpty) address.text = found.full;
+        });
+      }
+
+      if (captureNow && lat == null && !locating && locError == null) {
+        // Fired once, on the first build, for the "save where I am" entry.
+        captureNow = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) => grab());
+      }
+
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
@@ -329,6 +386,80 @@ Future<void> openPlaceEditor(BuildContext context, {Map<String, dynamic>? existi
                   hintText: ctx.t('place_address_hint'),
                   prefixIcon: const Icon(Icons.signpost_outlined),
                 ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: ctx.tokens.subtle,
+                  borderRadius: BorderRadius.circular(Radii.m),
+                  border: Border.all(color: ctx.tokens.border),
+                ),
+                child: Row(children: [
+                  Icon(
+                    lat != null ? Icons.my_location_rounded : Icons.location_searching_rounded,
+                    size: 18,
+                    color: lat != null ? ctx.cs.primary : ctx.tokens.textFaint,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: locating
+                        ? Text(ctx.t('place_locating'),
+                            style: ctx.tt.bodySmall
+                                ?.copyWith(color: ctx.tokens.textFaint))
+                        : lat != null && lng != null
+                            // Name on top, coordinates underneath: the name is
+                            // what you read, the numbers are what you verify.
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    pinName?.short ?? ctx.t('place_pin_set'),
+                                    style: ctx.tt.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w600),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    GeocodeService.coords(lat!, lng!),
+                                    style: ctx.tt.bodySmall
+                                        ?.copyWith(color: ctx.tokens.textFaint),
+                                  ),
+                                ],
+                              )
+                            : Text(
+                                locError ?? ctx.t('place_no_pin'),
+                                style: ctx.tt.bodySmall
+                                    ?.copyWith(color: ctx.tokens.textFaint),
+                              ),
+                  ),
+                  if (lat != null)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: ctx.t('place_open_map'),
+                      icon: Icon(Icons.map_rounded, size: 18, color: ctx.cs.primary),
+                      onPressed: () => _launch(
+                          ctx,
+                          LocationService.mapsUrl(lat!, lng!),
+                          ctx.t('place_open_failed')),
+                    ),
+                  if (lat != null)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: ctx.t('place_clear_pin'),
+                      icon: Icon(Icons.close_rounded, size: 16, color: ctx.tokens.textFaint),
+                      onPressed: () => set(() {
+                        lat = null;
+                        lng = null;
+                        pinName = null;
+                      }),
+                    ),
+                  TextButton(
+                    onPressed: locating ? null : grab,
+                    child: Text(ctx.t(lat == null ? 'place_use_here' : 'place_update_pin')),
+                  ),
+                ]),
               ),
               const SizedBox(height: 14),
               Text(ctx.t('category'), style: ctx.tt.labelMedium),
@@ -367,6 +498,10 @@ Future<void> openPlaceEditor(BuildContext context, {Map<String, dynamic>? existi
                       'name': name.text.trim(),
                       'address': address.text.trim(),
                       'category': category,
+                      'lat': lat,
+                      'pinName': pinName?.short ?? '',
+                      'pinArea': pinName?.full ?? '',
+                      'lng': lng,
                     };
                     Navigator.pop(ctx);
                     if (existing == null) {

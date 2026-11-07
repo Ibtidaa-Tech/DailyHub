@@ -186,7 +186,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
     return DhCard(
       color: context.tokens.tint(AppColors.mPrayer),
       child: Row(children: [
-        IconBadge(icon: Icons.mosque_rounded, color: AppColors.mPrayer, size: 44),
+        const IconBadge(icon: Icons.mosque_rounded, color: AppColors.mPrayer, size: 44),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

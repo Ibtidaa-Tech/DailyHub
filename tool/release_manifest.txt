@@ -22,6 +22,7 @@ lib/data/student_store.dart
 lib/data/tracker_models.dart
 lib/data/tracker_store.dart
 lib/data/trip_store.dart
+lib/data/whereabouts_store.dart
 lib/data/work_store.dart
 lib/features/auth/auth_screen.dart
 lib/features/capture/add_sheet.dart
@@ -77,6 +78,7 @@ lib/features/tracker/tracker_ui.dart
 lib/features/trips/trip_detail.dart
 lib/features/trips/trip_editor.dart
 lib/features/trips/trips_screen.dart
+lib/features/whereabouts/whereabouts_screen.dart
 lib/features/work/work_screen.dart
 lib/firebase_options.dart
 lib/l10n/strings_common.dart
@@ -114,6 +116,7 @@ lib/services/auth_service.dart
 lib/services/backup_service.dart
 lib/services/db_service.dart
 lib/services/file_service.dart
+lib/services/geocode_service.dart
 lib/services/link_service.dart
 lib/services/location_service.dart
 lib/services/mentor_service.dart

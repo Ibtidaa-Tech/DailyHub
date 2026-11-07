@@ -206,7 +206,7 @@ class _TrackerGridState extends State<TrackerGrid> {
             const SizedBox(height: 2),
             Text(
               i.name,
-              maxLines: 2,
+              maxLines: i.currentTarget == null ? 2 : 1,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               style: context.tt.labelSmall?.copyWith(
@@ -216,6 +216,21 @@ class _TrackerGridState extends State<TrackerGrid> {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            // The number you are aiming at today, under the name. Each day's
+            // own target lives in that day's details, where history belongs.
+            if (i.currentTarget != null)
+              Text(
+                i.currentTarget!.label,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: context.tt.labelSmall?.copyWith(
+                  fontSize: 8.5,
+                  height: 1.1,
+                  color: context.tokens.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
           ]),
         ),
       ),

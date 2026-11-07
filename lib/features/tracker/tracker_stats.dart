@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/format.dart';
 import '../../core/localization.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
@@ -526,6 +527,26 @@ class _HabitRow extends StatelessWidget {
       const SizedBox(height: 8),
       ProgressBar(value: tally.rate, color: color, height: 6),
       const SizedBox(height: 8),
+      if (item.sortedTargets.length > 1) ...[
+        // "20 → 40 from 8 Nov": the whole point of a dated target is that the
+        // change is part of the record.
+        Text(
+          [for (final t in item.sortedTargets) t.label].join(' → '),
+          style: context.tt.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          context.tr('tr_target_changed_on', {
+            'day': context.dayLabel(item.sortedTargets.last.day ?? todayDate()),
+          }),
+          style: context.tt.bodySmall?.copyWith(color: tk.textMuted),
+        ),
+        const SizedBox(height: 8),
+      ] else if (item.currentTarget != null) ...[
+        Text(context.tr('tr_target_is', {'t': item.currentTarget!.label}),
+            style: context.tt.bodySmall?.copyWith(color: tk.textMuted)),
+        const SizedBox(height: 8),
+      ],
       Wrap(spacing: 6, runSpacing: 4, children: [
         Pill('${tally.onTime} ${context.t('tr_on_time')}', color: tk.success),
         if (tally.lateTicks > 0) Pill('${tally.lateTicks} ${context.t('tr_late')}', color: tk.warning),

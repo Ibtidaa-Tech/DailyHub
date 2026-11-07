@@ -212,6 +212,43 @@ class ItemKind {
   static const avoid = 'avoid';
 }
 
+/// A target that applies from one day onward — "20 from 29 Oct", "40 from
+/// 8 Nov".
+///
+/// Raising a target mid-run is the normal shape of progress, and rewriting the
+/// habit would quietly relabel the ten days you already did at 20. So targets
+/// are a dated list instead of a single number: history keeps the target that
+/// was actually in force, and today keeps the one you are aiming at now.
+class TargetStep {
+  /// 'YYYY-MM-DD' — the first day this target applies.
+  String from;
+  double value;
+
+  /// Free text: 'reps', 'problems', 'lessons', 'pages'. Optional.
+  String unit;
+
+  TargetStep({this.from = '', this.value = 0, this.unit = ''});
+
+  factory TargetStep.fromMap(Map<String, dynamic> m) => TargetStep(
+        from: str(m['from']),
+        value: (m['value'] as num?)?.toDouble() ?? 0,
+        unit: str(m['unit']),
+      );
+
+  Map<String, dynamic> toMap() => {'from': from, 'value': value, 'unit': unit};
+
+  DateTime? get day => parseDay(from);
+
+  /// Whole numbers lose the '.0': 40, not 40.0. Halves survive: 1.5.
+  String get valueLabel =>
+      value == value.roundToDouble() ? value.round().toString() : value.toString();
+
+  /// "40 reps", or just "40" when no unit is set.
+  String get label => unit.isEmpty ? valueLabel : '$valueLabel $unit';
+
+  TargetStep copy() => TargetStep(from: from, value: value, unit: unit);
+}
+
 class TrackerItem {
   final String id;
   final Map<String, dynamic> raw;
@@ -235,6 +272,10 @@ class TrackerItem {
   String addedBy;
   String addedAt;
 
+  /// Dated targets, earliest first. Empty for a habit where a number means
+  /// nothing — Fajr, No Junk Food.
+  List<TargetStep> targets;
+
   TrackerItem({
     this.id = '',
     Map<String, dynamic>? raw,
@@ -250,7 +291,9 @@ class TrackerItem {
     this.order = 0,
     this.addedBy = '',
     this.addedAt = '',
-  }) : raw = raw ?? {};
+    List<TargetStep>? targets,
+  })  : raw = raw ?? {},
+        targets = targets ?? [];
 
   factory TrackerItem.fromMap(Map<String, dynamic> m) => TrackerItem(
         id: str(m['id']),
@@ -267,7 +310,26 @@ class TrackerItem {
         order: toI(m['order']),
         addedBy: str(m['addedBy']),
         addedAt: str(m['addedAt']),
+        // Written as a list, but Firebase hands back a Map when the keys are
+        // sparse, so accept either.
+        targets: _targetsFrom(m['targets']),
       );
+
+  static List<TargetStep> _targetsFrom(Object? v) {
+    final out = <TargetStep>[];
+    if (v is List) {
+      for (final e in v) {
+        if (e is Map) out.add(TargetStep.fromMap(Map<String, dynamic>.from(e)));
+      }
+    } else if (v is Map) {
+      for (final e in v.values) {
+        if (e is Map) out.add(TargetStep.fromMap(Map<String, dynamic>.from(e)));
+      }
+    }
+    out.removeWhere((t) => t.day == null);
+    out.sort((a, b) => a.from.compareTo(b.from));
+    return out;
+  }
 
   Map<String, dynamic> toMap() => {
         ...raw,
@@ -283,9 +345,54 @@ class TrackerItem {
         'order': order,
         'addedBy': addedBy,
         'addedAt': addedAt.isEmpty ? nowIso() : addedAt,
+        'targets': [for (final t in sortedTargets) t.toMap()],
       }..remove('id');
 
   bool get isAvoid => kind == ItemKind.avoid;
+
+  bool get hasTargets => targets.isNotEmpty;
+
+  List<TargetStep> get sortedTargets =>
+      [...targets]..sort((a, b) => a.from.compareTo(b.from));
+
+  /// The target in force on [day]: the latest step that starts on or before
+  /// it. Null before the first step begins, so a target added today does not
+  /// retroactively claim the days before it.
+  TargetStep? targetOn(DateTime day) {
+    TargetStep? found;
+    for (final t in sortedTargets) {
+      final d = t.day;
+      if (d == null || d.isAfter(day)) break;
+      found = t;
+    }
+    return found;
+  }
+
+  /// What you are aiming at right now.
+  TargetStep? get currentTarget => targetOn(todayDate());
+
+  /// The last target of all, which is the one in force on the final day —
+  /// including a step you have dated into the future.
+  TargetStep? get latestTarget =>
+      sortedTargets.isEmpty ? null : sortedTargets.last;
+
+  /// Name with the target in force on [day], for a column header or a row:
+  /// "Pushups · 40".
+  String labelOn(DateTime day) {
+    final t = targetOn(day);
+    return t == null ? name : '$name · ${t.label}';
+  }
+
+  /// Replaces the target starting on [from], or adds one. Keeps the list
+  /// sorted and never leaves two steps on the same day.
+  void setTarget(DateTime from, double value, {String unit = ''}) {
+    final key = dayKey(from);
+    targets.removeWhere((t) => t.from == key);
+    targets.add(TargetStep(from: key, value: value, unit: unit));
+    targets.sort((a, b) => a.from.compareTo(b.from));
+  }
+
+  void removeTarget(String from) => targets.removeWhere((t) => t.from == from);
 
   DateTime? get start => parseDay(startDay);
 

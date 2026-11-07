@@ -1009,23 +1009,33 @@ class GroupCard extends StatelessWidget {
 void showToast(BuildContext context, String message, {IconData? icon}) {
   final m = ScaffoldMessenger.maybeOf(context);
   if (m == null) return;
-  m.hideCurrentSnackBar();
+  // clearSnackBars, not hideCurrentSnackBar: hiding removes only the one on
+  // screen and leaves the queue, so a burst of toasts plays one after another
+  // and looks like a bar that will not go away.
+  m.clearSnackBars();
   m.showSnackBar(SnackBar(
     content: Row(children: [
       if (icon != null) ...[Icon(icon, color: Colors.white, size: 18), const SizedBox(width: 10)],
       Expanded(child: Text(message)),
     ]),
     duration: const Duration(seconds: 2),
+    dismissDirection: DismissDirection.horizontal,
   ));
 }
 
 void showUndo(BuildContext context, String message, VoidCallback onUndo) {
   final m = ScaffoldMessenger.maybeOf(context);
   if (m == null) return;
-  m.hideCurrentSnackBar();
+  m.clearSnackBars();
   m.showSnackBar(SnackBar(
     content: Text(message),
     duration: const Duration(seconds: 5),
+    // Three ways out, because an undo bar that overstays is worse than one
+    // that goes early: it times out, it swipes away sideways, and it has an
+    // X for anyone who would rather just be rid of it.
+    dismissDirection: DismissDirection.horizontal,
+    showCloseIcon: true,
+    closeIconColor: Colors.white70,
     action: SnackBarAction(label: context.t('undo'), onPressed: onUndo),
   ));
 }

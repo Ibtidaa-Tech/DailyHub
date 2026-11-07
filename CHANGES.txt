@@ -1,103 +1,109 @@
-DailyHub - drop 11 : prayer times from your location, every school
-===================================================================
+DailyHub - drop 12 : Where was I, Hub labels, save a place by GPS
+==================================================================
 
-CUMULATIVE (drops 01-11). Extract over the project root.
+CUMULATIVE (drops 01-12). Extract over the project root.
 NO rules deploy needed.
 
 NEW
-  lib/services/prayer_times.dart        the calculation - pure Dart, offline
-  lib/data/prayer_store.dart            per-day corrections
-  lib/features/prayer/prayer_screen.dart the screen
+  lib/data/whereabouts_store.dart              daily location log
+  lib/features/whereabouts/whereabouts_screen.dart
 
 CHANGED
-  lib/core/settings.dart     method, madhab, location, follow-location
-  lib/core/theme.dart        AppColors.mPrayer
-  lib/app.dart               PrayerStore in the session
-  lib/features/hub/modules.dart   "Prayer times" module
-  lib/l10n/strings_tracker.dart   +40 keys, EN + HI
-  tool/release_manifest.txt       135 entries
-
-Turn it on: Hub -> Manage modules -> Prayer times.
-
-
-THE CALCULATION
----------------
-Computed on your phone from the sun's position. No API, no key, no network,
-no new package - it works offline and on a plane.
-
-I checked the maths against known sunrise and sunset before writing the
-Dart, and it lands to the minute: Delhi 06:36 / 17:33, London 07:02 /
-16:26, Makkah 06:26 / 17:42, Mumbai 06:41 / 18:03.
-
-Then I checked it against YOUR sheet. Your times match a Mumbai longitude
-with Shafi'i Asr, within a few minutes:
-
-                  your sheet     calculated
-   Fajr             5:22           5:26
-   Zuhr            12:20          12:22
-   Asr              3:41           3:38   (Shafi'i)
-   Maghrib          6:08           6:03
-   Isha             7:15           7:18
-
-So your times are calculated ones, not mosque jamaat times. Expect the app
-to sit within about five minutes of what you are already using.
+  lib/features/hub/hub_screen.dart   two-line labels + alphabetical
+  lib/screens/places_screen.dart     save a place at your current location
+  lib/app.dart                       WhereaboutsStore in the session
+  lib/features/shell/shell.dart      once-a-day capture on app open
+  lib/features/hub/modules.dart      "Where was I" module
+  lib/l10n/strings_tracker.dart      229 keys, EN + HI
+  tool/release_manifest.txt          137 entries
 
 
-A CORRECTION ON THE SCHOOLS
----------------------------
-You asked for Shafi'i and Hanbali side by side. Those two always give the
-SAME Asr - Shafi'i, Maliki and Hanbali all use one shadow-length. Only
-Hanafi differs, using two, which puts it roughly 45 minutes later.
-
-You chose to show all four named separately, so that is what it does: four
-rows, three of them matching, with a line underneath explaining why. Tap
-one to choose which drives the rest of the app.
-
-
-WHAT THE SCREEN DOES
+1. THE CUT-OFF NAMES
 --------------------
-  * Fajr, sunrise, Zuhr, Asr, Maghrib, Isha for any date - arrows to step
-    a day, tap the date to jump
-  * "Asr by school": all four, your choice marked
-  * a next-prayer card with the countdown
-  * TAP ANY TIME TO CORRECT IT. The correction applies to THAT DAY ONLY,
-    exactly as you asked - fix Fajr on 6 November and 7 November still
-    calculates clean. Corrected times show in blue with an undo arrow.
-  * the calculation method lives behind the tune icon: Karachi (the default
-    and the usual choice in India), Muslim World League, ISNA, Egyptian,
-    Umm al-Qura, Gulf, Tehran
-  * "Follow my location" recalculates wherever you are, so travelling stays
-    right. Turn it off to pin the times to one place.
+"Lend & b...", "Savings g...", "Focus tim...", "Priority m..." - the tile
+label was capped at one line, and four columns on a phone is about 85px.
 
-Location is read only when you open the screen, never in the background,
-and the coordinates never leave your phone - the sun maths is local.
+Labels now wrap to two lines in a fixed-height box, so every tile still
+lines up whether its name wraps or not. Nothing is truncated any more.
 
 
-WHY THE TRACKER WINDOWS ARE NOT WIRED TO THIS YET
--------------------------------------------------
-Deliberate, and I would rather you agree before I do it: check the
-calculated times against your mosque for a day or two first. If they are
-off for your area, better to find that on a screen than to have your Fajr
-habit silently re-timed and start marking you late.
+2. ALPHABETICAL
+---------------
+Tiles are now sorted A-Z inside each section, by the TRANSLATED name, so
+the order is right in Hindi too.
 
-Once you are happy, say so and drop 12 binds them: a habit gets a "this is
-Fajr" setting, its window becomes the real window for that day (Fajr until
-sunrise, Zuhr until Asr, and so on), it moves with you when you travel, and
-your per-day corrections carry through to the tracker too.
+I kept the sections (Plan, Money, Life, Home, Work) and sorted within
+them, rather than collapsing everything into one long A-Z list - the
+sections are what tell you roughly where to look. If you would rather have
+one flat alphabetical list with no sections at all, say so; it is a
+one-line change.
+
+
+3. WHY PRAYER TIMES WAS MISSING
+-------------------------------
+Not a bug. Your account has a saved module list in Firebase from before
+that module existed, and the saved list wins over the new default. Same
+thing happened with Tracker.
+
+  Hub -> Manage modules -> Prayer times      (and Where was I, below)
+
+Both need switching on once, on each device-independent account.
+
+
+4. WHERE WAS I
+--------------
+Hub -> Manage modules -> Where was I, then Hub -> Where was I.
+
+One entry per day:
+  * captured automatically the first time you open the app each day
+  * a label you write yourself - "home", "college", "Nani's house"
+  * an optional note - what you were doing there
+  * Maps button, and a copy button for the raw coordinates
+
+NO BACKGROUND TRACKING. The app records a fix when you open it and at no
+other time, which is also why it is one row per day rather than a trail of
+points through your afternoon. The automatic capture uses the quiet,
+never-prompting location call, so opening the app will never throw a
+permission dialog at you - until you grant location from the screen
+itself, it simply does nothing.
+
+There is no reverse geocoding, so a place has no name until you give it
+one. That is deliberate as well as simpler: "Nani's house" is worth more
+to you in six months than "Unnamed Road, Ward 12".
+
+It lives in your own data and a mentor cannot reach it - the rules you
+deployed grant them the three tracker collections and nothing else. A
+location history is the most sensitive thing in this app and it is worth
+being plain about where it goes.
+
+
+5. SAVING A PLACE WHERE YOU ARE
+-------------------------------
+Places now has a crosshair button in the top bar: "Save where I am". It
+opens the editor already fetching your position, so you type the name and
+the note while it finds you.
+
+The editor also has a location strip on every place, new or existing:
+coordinates when there is a pin, "Use my location" to attach one, and an x
+to remove it. Saved places with a pin keep working exactly as before, the
+coordinates just make the Maps link land on the exact spot rather than on
+a text search of the address.
+
+The address box was already there and still is - that is your write-in
+box for anything that is not a street address.
 
 
 CHECKLIST
 ---------
-  done   drops 01-10
-  done   drop 11   prayer times (this drop)
-  next   drop 12   "Where was I" daily location log
+  done   drops 01-11
+  done   drop 12   Where was I, Hub labels, place pins (this drop)
   then            bind tracker windows to prayer times (your go-ahead)
   owed            join code + mentor ticking - one rules deploy
+  open            Resume action for a finished run, if you want the safety net
   open            move repo files out of app/ back to the root
   open            release 2.2.0+6 with the APK attached
   open            superadmin email readable in a public repo
 
 
-Hand-checked: all string keys resolve, EN/HI placeholders match, brackets
-balance, no deprecated Radio.groupValue anywhere. Send me the analyze
-output.
+Hand-checked: all string keys resolve, EN/HI complete, brackets balance.
+Send me the analyze output.

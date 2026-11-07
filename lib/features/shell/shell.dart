@@ -10,6 +10,7 @@ import '../../core/localization.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
 import '../../core/workspace_provider.dart';
+import '../../data/whereabouts_store.dart';
 import '../../services/admin_service.dart';
 import '../../services/db_service.dart';
 import '../../services/notification_service.dart';
@@ -80,6 +81,16 @@ class _HomeShellState extends State<HomeShell> {
       }
       final info = await UpdateService.instance.check();
       if (info != null && mounted) await showUpdateDialog(context, info);
+
+      // Today's whereabouts fix, if that module is on and today has none.
+      // Uses the coarse, never-prompting call on purpose: opening the app
+      // should never throw a permission dialog at you. Until permission is
+      // granted from the Where was I screen this does nothing at all.
+      if (!mounted) return;
+      final settings = context.read<AppSettings>();
+      if (settings.modules.contains('whereabouts')) {
+        await context.read<WhereaboutsStore>().captureToday();
+      }
     });
     _tapSub = NotificationService.instance.taps.listen(_handleTap);
   }

@@ -52,6 +52,14 @@ class _HubScreenState extends State<HubScreen> {
         for (final m in visible) {
           groups.putIfAbsent(m.group, () => []).add(m);
         }
+        // Sorted by the translated label, not the id, so the order is right
+        // in Hindi as well as English.
+        for (final list in groups.values) {
+          list.sort((a, b) => context
+              .t(a.labelKey)
+              .toLowerCase()
+              .compareTo(context.t(b.labelKey).toLowerCase()));
+        }
         return AppPage(
           title: context.t('tab_hub'),
           subtitle: context.t('hub_sub'),
@@ -136,11 +144,19 @@ class _Grid extends StatelessWidget {
                   child: Column(children: [
                     IconBadge(icon: m.icon, color: m.color, size: 52, radius: 16),
                     const SizedBox(height: 6),
-                    Text(context.t(m.labelKey),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: context.tt.labelMedium),
+                    // Two lines at a fixed height: "Lend & borrow" and
+                    // "Priority matrix" were being cut to "Lend & b..." on a
+                    // four-column phone grid. The fixed box keeps every tile
+                    // the same height whether the label wraps or not.
+                    SizedBox(
+                      height: 30,
+                      child: Text(context.t(m.labelKey),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: context.tt.labelMedium
+                              ?.copyWith(fontSize: 11, height: 1.2)),
+                    ),
                   ]),
                 ),
               ),

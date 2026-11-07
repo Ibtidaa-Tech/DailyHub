@@ -63,7 +63,7 @@ class _TickDetailSheet extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SheetHeader(item.name, subtitle: context.dayLabel(day)),
+        SheetHeader(item.labelOn(day), subtitle: context.dayLabel(day)),
         const SizedBox(height: 6),
 
         Row(children: [
@@ -74,6 +74,11 @@ class _TickDetailSheet extends StatelessWidget {
               TickPill(log.tickStatus, itemColor: color, lateBy: log.lateBy),
               if (dayNumber != null)
                 Pill(context.tr('tr_day_n', {'n': dayNumber}), color: tk.textMuted),
+              // The target as it stood on this day, not as it stands now:
+              // ten days done at 20 stay ten days done at 20.
+              if (item.targetOn(day) != null)
+                Pill(context.tr('tr_target_was', {'t': item.targetOn(day)!.label}),
+                    color: color, icon: Icons.flag_rounded),
               if (item.isAvoid)
                 Pill(context.t('tr_kind_avoid'), color: tk.transfer, icon: Icons.block_rounded),
               if (log.recordedLater)

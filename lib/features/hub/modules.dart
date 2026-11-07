@@ -15,6 +15,7 @@ import '../shopping/shopping_screen.dart';
 import '../student/student_screen.dart';
 import '../../screens/tools/tools_screen.dart';
 import '../prayer/prayer_screen.dart';
+import '../whereabouts/whereabouts_screen.dart';
 import '../tracker/mentor_screen.dart';
 import '../tracker/tracker_screen.dart';
 import '../trips/trips_screen.dart';
@@ -95,6 +96,7 @@ class Modules {
     ModuleDef(id: 'categories', labelKey: 'm_categories', descKey: 'md_categories', icon: Icons.category_rounded, color: AppColors.mWork, group: 'money', parent: 'money', page: () => const CategoriesScreen()),
     // HOME & FAMILY
     ModuleDef(id: 'shopping', labelKey: 'm_shopping', descKey: 'md_shopping', icon: Icons.shopping_cart_rounded, color: AppColors.mShopping, group: 'home', page: () => const ShoppingScreen()),
+    ModuleDef(id: 'whereabouts', labelKey: 'm_whereabouts', descKey: 'md_whereabouts', icon: Icons.travel_explore_rounded, color: AppColors.mPlaces, group: 'home', page: () => const WhereaboutsScreen()),
     ModuleDef(id: 'places', labelKey: 'm_places', descKey: 'md_places', icon: Icons.place_rounded, color: AppColors.mPlaces, group: 'home', page: () => const PlacesScreen()),
     // TRAVEL
     ModuleDef(id: 'trips', labelKey: 'm_trips', descKey: 'md_trips', icon: Icons.flight_takeoff_rounded, color: AppColors.mTrips, group: 'travel', page: () => const TripsScreen()),

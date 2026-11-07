@@ -46,6 +46,7 @@ class _ItemSheetState extends State<_ItemSheet> {
   late String _end;
   late int _grace;
   late DateTime _startDay;
+  late List<TargetStep> _targets;
   bool _showMore = false;
   String? _error;
 
@@ -68,6 +69,145 @@ class _ItemSheetState extends State<_ItemSheet> {
     _startDay = parseDay(i?.startDay ?? '') ??
         (challengeStart.isAfter(todayDate()) ? challengeStart : todayDate());
     _showMore = (i?.hasWindow ?? false) || (i?.grace ?? 0) > 0;
+    // Edited on a copy, so cancelling the sheet really cancels.
+    _targets = [for (final t in i?.sortedTargets ?? const <TargetStep>[]) t.copy()];
+  }
+
+  /// First day a target may start: an item's own start day. A target before
+  /// the habit existed would describe days that were never tracked.
+  DateTime get _floor => _startDay;
+
+  /// Never allowed below the floor: showDatePicker asserts on an inverted
+  /// range, and a challenge whose end predates a late-added item would hit it.
+  DateTime get _ceiling {
+    final end = widget.challenge.end ?? addDays(_startDay, 20);
+    return end.isBefore(_floor) ? _floor : end;
+  }
+
+  /// Pulls a leading number out of the name: "20 Pushups" -> "Pushups" + 20.
+  /// Offered rather than applied, because "5 a day Quran" is not the same
+  /// shape and the person knows which is which.
+  ({String name, double value})? get _splittable {
+    final m = RegExp(r'^\s*(\d+(?:\.\d+)?)\s*[x×]?\s+(.+)$').firstMatch(_name.text);
+    if (m == null) return null;
+    final v = double.tryParse(m.group(1)!);
+    final rest = m.group(2)!.trim();
+    if (v == null || v <= 0 || rest.isEmpty) return null;
+    return (name: rest, value: v);
+  }
+
+  Future<void> _editTarget({TargetStep? existing}) async {
+    // A new step defaults to tomorrow: raising a target today would relabel
+    // what you already did today. The date is editable either way.
+    final initial = existing?.day ??
+        (() {
+          final t = addDays(todayDate(), 1);
+          if (t.isBefore(_floor)) return _floor;
+          if (t.isAfter(_ceiling)) return _ceiling;
+          return t;
+        })();
+    final value = TextEditingController(
+        text: existing == null ? '' : existing.valueLabel);
+    final unit = TextEditingController(text: existing?.unit ?? '');
+    var from = initial;
+
+    final saved = await showAppSheet<bool>(context, builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, set) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(ctx.t(existing == null ? 'tr_target_add' : 'tr_target_edit'),
+                    style: ctx.tt.titleLarge),
+                const SizedBox(height: 14),
+                Row(children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: value,
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: ctx.t('tr_target_value'),
+                        hintText: '40',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      controller: unit,
+                      decoration: InputDecoration(
+                        labelText: ctx.t('tr_target_unit'),
+                        hintText: ctx.t('tr_target_unit_hint'),
+                      ),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                FormFieldButton(
+                  icon: Icons.event_rounded,
+                  label: ctx.t('tr_target_from'),
+                  value: ctx.dayLabel(from),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: from,
+                      firstDate: _floor,
+                      lastDate: _ceiling,
+                    );
+                    if (picked != null) set(() => from = dateOnly(picked));
+                  },
+                ),
+                const SizedBox(height: 4),
+                Text(ctx.t('tr_target_from_hint'),
+                    style: ctx.tt.bodySmall
+                        ?.copyWith(color: ctx.tokens.textMuted)),
+                const SizedBox(height: 18),
+                Row(children: [
+                  if (existing != null)
+                    TextButton.icon(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      icon: Icon(Icons.delete_outline_rounded,
+                          size: 18, color: ctx.tokens.danger),
+                      label: Text(ctx.t('delete'),
+                          style: TextStyle(color: ctx.tokens.danger)),
+                    ),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(ctx.t('save')),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        );
+      });
+    });
+
+    final typed = value.text.trim();
+    final typedUnit = unit.text.trim();
+    value.dispose();
+    unit.dispose();
+
+    if (!mounted || saved == null) return;
+    if (saved == false && existing != null) {
+      setState(() => _targets.removeWhere((t) => t.from == existing.from));
+      return;
+    }
+    final v = double.tryParse(typed);
+    if (v == null || v <= 0) return;
+    setState(() {
+      if (existing != null) _targets.removeWhere((t) => t.from == existing.from);
+      _targets.removeWhere((t) => t.from == dayKey(from));
+      _targets.add(TargetStep(from: dayKey(from), value: v, unit: typedUnit));
+      _targets.sort((a, b) => a.from.compareTo(b.from));
+    });
   }
 
   @override
@@ -111,6 +251,18 @@ class _ItemSheetState extends State<_ItemSheet> {
     if (picked != null && mounted) setState(() => _startDay = dateOnly(picked));
   }
 
+  /// The step in force today, by the same rule the model uses.
+  TargetStep? _currentOf(List<TargetStep> list) {
+    final today = todayDate();
+    TargetStep? found;
+    for (final t in [...list]..sort((a, b) => a.from.compareTo(b.from))) {
+      final d = t.day;
+      if (d == null || d.isAfter(today)) break;
+      found = t;
+    }
+    return found;
+  }
+
   void _save() {
     final name = _name.text.trim();
     if (name.isEmpty) {
@@ -126,7 +278,8 @@ class _ItemSheetState extends State<_ItemSheet> {
       ..windowStart = _start
       ..windowEnd = _end
       ..grace = _grace
-      ..startDay = dayKey(_startDay);
+      ..startDay = dayKey(_startDay)
+      ..targets = _targets;
     widget.store.saveItem(i);
     Navigator.pop(context, true);
   }
@@ -219,6 +372,62 @@ class _ItemSheetState extends State<_ItemSheet> {
         const SizedBox(height: 4),
         Text(context.t('tr_window_hint'), style: context.tt.bodySmall?.copyWith(color: tk.textMuted)),
 
+        // -------------------------------------------------------- targets
+        const SizedBox(height: 16),
+        SectionTitle(context.t('tr_target')),
+        const SizedBox(height: 6),
+        if (_targets.isEmpty)
+          Text(context.t('tr_target_none'),
+              style: context.tt.bodySmall?.copyWith(color: tk.textMuted))
+        else
+          for (final t in _targets) ...[
+            _TargetRow(
+              step: t,
+              // The step in force today is the one you are actually aiming at.
+              current: _currentOf(_targets) == t,
+              onTap: () => _editTarget(existing: t),
+            ),
+            const SizedBox(height: 6),
+          ],
+        const SizedBox(height: 2),
+        Row(children: [
+          TextButton.icon(
+            onPressed: () => _editTarget(),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: Text(context.t(_targets.isEmpty ? 'tr_target_set' : 'tr_target_change')),
+            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+          ),
+          // Only shown when the name actually begins with a number, so it
+          // never nags at habits where it makes no sense.
+          if (_targets.isEmpty && _splittable != null)
+            Expanded(
+              child: TextButton.icon(
+                onPressed: () {
+                  final sp = _splittable!;
+                  setState(() {
+                    _name.text = sp.name;
+                    _targets = [
+                      TargetStep(from: dayKey(_startDay), value: sp.value)
+                    ];
+                  });
+                },
+                icon: const Icon(Icons.auto_fix_high_rounded, size: 16),
+                label: Text(
+                  context.tr('tr_target_split', {
+                    'n': _splittable!.value.round().toString(),
+                    'name': _splittable!.name,
+                  }),
+                  maxLines: 2,
+                  style: context.tt.bodySmall,
+                ),
+                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+              ),
+            ),
+        ]),
+        const SizedBox(height: 2),
+        Text(context.t('tr_target_hint'),
+            style: context.tt.bodySmall?.copyWith(color: tk.textMuted)),
+
         // --------------------------------------------------------- extras
         const SizedBox(height: 8),
         if (!_showMore)
@@ -274,6 +483,56 @@ class _ItemSheetState extends State<_ItemSheet> {
           FilledButton(onPressed: _save, child: Text(context.t('save'))),
         ]),
       ]),
+    );
+  }
+}
+
+/// One dated target in the editor's list.
+class _TargetRow extends StatelessWidget {
+  const _TargetRow({required this.step, required this.current, required this.onTap});
+
+  final TargetStep step;
+  final bool current;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tk = context.tokens;
+    final day = step.day;
+    final future = day != null && day.isAfter(todayDate());
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.m),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: current ? context.cs.primary.withValues(alpha: 0.08) : tk.subtle,
+          borderRadius: BorderRadius.circular(Radii.m),
+          border: Border.all(color: current ? context.cs.primary : tk.border),
+        ),
+        child: Row(children: [
+          Text(step.label,
+              style: context.tt.titleSmall?.copyWith(
+                  color: current ? context.cs.primary : null)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              day == null
+                  ? ''
+                  : context.tr('tr_target_from_day', {'day': context.dayLabel(day)}),
+              style: context.tt.bodySmall?.copyWith(color: tk.textMuted),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (current)
+            Pill(context.t('tr_target_now'), color: context.cs.primary)
+          else if (future)
+            Pill(context.t('tr_target_upcoming'), color: tk.textFaint),
+          const SizedBox(width: 4),
+          Icon(Icons.edit_rounded, size: 15, color: tk.textFaint),
+        ]),
+      ),
     );
   }
 }

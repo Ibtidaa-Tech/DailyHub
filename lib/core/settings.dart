@@ -23,6 +23,10 @@ class AppSettings extends ChangeNotifier {
   // Account-level (synced)
   String currency = 'INR';
   Set<String> modules = {...ModuleDefaults.core};
+  /// Which batch of shipped modules this account has already been shown.
+  /// Without it an upgrade is invisible: the saved module list always beat the
+  /// new defaults, so a module added in an update never appeared in the Hub.
+  int moduleRev = ModuleDefaults.rev;
   List<String> homeOrder = List.of(HomeSections.defaults);
   Set<String> homeHidden = {};
   int weekStart = DateTime.monday;
@@ -97,6 +101,7 @@ class AppSettings extends ChangeNotifier {
   Map<String, dynamic> syncedJson() => {
         'currency': currency,
         'modules': modules.toList(),
+        'moduleRev': moduleRev,
         'homeOrder': homeOrder,
         'homeHidden': homeHidden.toList(),
         'weekStart': weekStart,
@@ -116,6 +121,9 @@ class AppSettings extends ChangeNotifier {
       final m = (r['modules'] as List).map((e) => '$e').toSet();
       if (m.isNotEmpty) {
         modules = {...m, ...ModuleDefaults.alwaysOn};
+        if (_migrateModules(r['moduleRev'] is int ? r['moduleRev'] as int : 0)) {
+          onSyncedChange?.call(syncedJson());
+        }
         changed = true;
       }
     }
@@ -177,6 +185,9 @@ class AppSettings extends ChangeNotifier {
     currency = j['currency'] ?? Currencies.detect();
     if (j['modules'] is List) {
       modules = {...(j['modules'] as List).map((e) => '$e'), ...ModuleDefaults.alwaysOn};
+      // A stored list with no revision is from a build before revisions
+      // existed, so start the migration from zero.
+      _migrateModules(j['moduleRev'] is int ? j['moduleRev'] as int : 0);
     }
     if (j['homeOrder'] is List) {
       homeOrder = HomeSections.normalize((j['homeOrder'] as List).map((e) => '$e').toList());
@@ -332,9 +343,26 @@ class AppSettings extends ChangeNotifier {
     _save();
   }
 
+  /// Switch on the modules shipped since this account last saw the defaults.
+  /// Only ever adds: a module the user deliberately switched off after seeing
+  /// it stays off, because the revision is bumped and saved either way.
+  bool _migrateModules(int storedRev) {
+    if (storedRev >= ModuleDefaults.rev) {
+      moduleRev = ModuleDefaults.rev;
+      return false;
+    }
+    for (var r = storedRev + 1; r <= ModuleDefaults.rev; r++) {
+      final add = ModuleDefaults.addedAtRev[r];
+      if (add != null) modules.addAll(add);
+    }
+    moduleRev = ModuleDefaults.rev;
+    return true;
+  }
+
   /// Local reset on sign-out so the next account starts clean.
   void resetAccountState() {
     onboarded = false;
+    moduleRev = ModuleDefaults.rev;
     modules = {...ModuleDefaults.core};
     homeOrder = List.of(HomeSections.defaults);
     homeHidden = {};
@@ -349,7 +377,17 @@ class ModuleDefaults {
 
   /// On for everyone after onboarding.
   static const Set<String> core = {
-    'tasks', 'reminders', 'calendar', 'notes', 'habits', 'money', 'tracker', 'settings',
+    'tasks', 'reminders', 'calendar', 'notes', 'habits', 'money',
+    'tracker', 'prayer', 'whereabouts', 'settings',
+  };
+
+  /// Bump this whenever a module is added that existing accounts should get,
+  /// and list the new ids under the matching revision below.
+  static const int rev = 2;
+
+  static const Map<int, Set<String>> addedAtRev = {
+    1: {'tracker'},
+    2: {'prayer', 'whereabouts'},
   };
 }
 

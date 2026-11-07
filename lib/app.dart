@@ -17,6 +17,7 @@ import 'data/student_store.dart';
 import 'data/shopping_store.dart';
 import 'data/tracker_store.dart';
 import 'data/trip_store.dart';
+import 'data/whereabouts_store.dart';
 import 'data/work_store.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -115,6 +116,7 @@ class _Session {
   final WorkStore work = WorkStore();
   final TrackerStore tracker = TrackerStore();
   final PrayerStore prayer;
+  final WhereaboutsStore whereabouts = WhereaboutsStore();
   final ExtrasStore extras;
   final List<StreamSubscription<dynamic>> subs = [];
   Timer? prefsTimeout;
@@ -138,6 +140,7 @@ class _Session {
     work.dispose();
     tracker.dispose();
     prayer.dispose();
+    whereabouts.dispose();
     extras.dispose();
   }
 }
@@ -305,6 +308,7 @@ class _SessionHostState extends State<SessionHost> {
         ChangeNotifierProvider.value(value: s.work),
         ChangeNotifierProvider.value(value: s.tracker),
         ChangeNotifierProvider.value(value: s.prayer),
+        ChangeNotifierProvider.value(value: s.whereabouts),
         ChangeNotifierProvider.value(value: s.extras),
       ],
       child: widget.child,

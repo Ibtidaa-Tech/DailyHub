@@ -352,6 +352,44 @@ const Map<String, List<String>> stringsTracker = {
     '{m} से इसी फ़ोन पर गणना। किसी भी समय पर टैप करके उस दिन के लिए सुधारें।',
   ],
 
+
+  // Where was I
+  'm_whereabouts': ['Where was I', 'मैं कहाँ था'],
+  'md_whereabouts': [
+    'A day-by-day record of where you were',
+    'आप कहाँ थे, दिन-ब-दिन का रिकॉर्ड',
+  ],
+  'wa_sub': ['One place a day, named by you', 'रोज़ एक जगह, नाम आपका दिया हुआ'],
+  'wa_log_now': ['Log where I am', 'अभी की जगह दर्ज करें'],
+  'wa_logged': ['Location saved', 'जगह दर्ज हो गई'],
+  'wa_nothing_today': ['Not recorded yet today', 'आज अभी दर्ज नहीं'],
+  'wa_unnamed': ['Unnamed place', 'बिना नाम की जगह'],
+  'wa_history': ['Earlier days', 'पिछले दिन'],
+  'wa_empty': ['Nothing recorded yet', 'अभी कुछ दर्ज नहीं'],
+  'wa_empty_msg': [
+    'From now on the app notes where you are once a day, the first time you open it.',
+    'अब से ऐप दिन में एक बार, जब आप पहली बार खोलेंगे, आपकी जगह दर्ज कर लेगा।',
+  ],
+  'wa_label': ['Call it', 'इसे क्या कहें'],
+  'wa_label_hint': ['Home, college, Nani\'s house…', 'घर, कॉलेज, नानी का घर…'],
+  'wa_note': ['Note', 'नोट'],
+  'wa_note_hint': ['What were you doing there?', 'वहाँ क्या कर रहे थे?'],
+  'wa_maps': ['Open in Maps', 'मैप्स में खोलें'],
+  'wa_copy': ['Copy coordinates', 'निर्देशांक कॉपी करें'],
+  'wa_copied': ['Coordinates copied', 'निर्देशांक कॉपी हुए'],
+  'wa_privacy': [
+    'Recorded only when you open the app, never in the background. It stays in your own data \u2014 a mentor cannot see it.',
+    'सिर्फ़ तब दर्ज होता है जब आप ऐप खोलते हैं, बैकग्राउंड में कभी नहीं। यह आपके अपने डेटा में रहता है \u2014 मेंटर इसे नहीं देख सकते।',
+  ],
+
+  // Places: pin
+  'place_save_here': ['Save where I am', 'अभी की जगह सहेजें'],
+  'place_use_here': ['Use my location', 'मेरी जगह लें'],
+  'place_update_pin': ['Update', 'अपडेट'],
+  'place_locating': ['Finding you…', 'आपको ढूँढ रहे हैं…'],
+  'place_no_pin': ['No pin saved', 'कोई पिन नहीं'],
+  'place_clear_pin': ['Remove pin', 'पिन हटाएँ'],
+
   // Notifications
   'ch_tracker': ['Habit tracker', 'आदत ट्रैकर'],
   'ch_tracker_desc': [
@@ -374,4 +412,31 @@ const Map<String, List<String>> stringsTracker = {
   'tr_tpl_duolingo': ['Duolingo', 'डुओलिंगो'],
   'tr_tpl_pushups': ['20 pushups', '20 पुशअप'],
   'tr_tpl_nojunk': ['No junk food', 'जंक फ़ूड नहीं'],
+
+  // --- dated targets -------------------------------------------------
+  'tr_target': ['Target', 'लक्ष्य'],
+  'tr_target_none': ['No target set — just tick it off.', 'कोई लक्ष्य नहीं — बस टिक करें।'],
+  'tr_target_set': ['Set a target', 'लक्ष्य सेट करें'],
+  'tr_target_change': ['Change the target', 'लक्ष्य बदलें'],
+  'tr_target_add': ['New target', 'नया लक्ष्य'],
+  'tr_target_edit': ['Edit target', 'लक्ष्य बदलें'],
+  'tr_target_value': ['How many', 'कितने'],
+  'tr_target_unit': ['Unit', 'इकाई'],
+  'tr_target_unit_hint': ['reps, pages, problems', 'रेप्स, पेज, सवाल'],
+  'tr_target_from': ['Starts from', 'इस दिन से'],
+  'tr_target_from_day': ['from {day}', '{day} से'],
+  'tr_target_from_hint': [
+    'Days before this keep the target they had, so what you have already done is never relabelled.',
+    'इससे पहले के दिनों का लक्ष्य वही रहेगा, इसलिए जो आपने पहले किया है वह नहीं बदलेगा।'
+  ],
+  'tr_target_hint': [
+    'Raise or lower it any time. The old target stays on the days it applied.',
+    'कभी भी बढ़ाएँ या घटाएँ। पुराना लक्ष्य उन्हीं दिनों पर रहेगा जिन पर वह लागू था।'
+  ],
+  'tr_target_now': ['now', 'अभी'],
+  'tr_target_upcoming': ['upcoming', 'आगे'],
+  'tr_target_was': ['Target {t}', 'लक्ष्य {t}'],
+  'tr_target_is': ['Target: {t}', 'लक्ष्य: {t}'],
+  'tr_target_changed_on': ['Changed from {day}', '{day} से बदला'],
+  'tr_target_split': ['Use {n} as the target, name it "{name}"', '{n} को लक्ष्य बनाएँ, नाम "{name}"'],
 };
